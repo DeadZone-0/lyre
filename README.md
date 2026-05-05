@@ -3,34 +3,49 @@
 A beautiful music visualizer and metadata TUI built with Node.js and Ink.
 
 ## Features
-- Real-time audio visualization using `cava`.
-- Metadata tracking (Title, Artist, Album, Status) using `playerctl`.
-- Smooth progress bar.
-- Modern, aesthetic terminal UI.
+- **Real-time Visualization**: Audio visualizer using `cava`.
+- **Album Art**: high-res (half-block), ultra-res (braille), or ASCII modes.
+- **Metadata**: Track info, progress bar, and player status via `playerctl`.
+- **Interactive Controls**: Play, pause, skip, and volume control from your keyboard.
+- **Responsive**: Adapts to any terminal size.
 
 ## Prerequisites
 - **Node.js** (v18+)
-- **cava**: For audio visualization.
-- **playerctl**: For music metadata.
-- **Nerd Fonts**: Recommended for icons (e.g., FiraCode Nerd Font).
+- **cava**: Required for visualization.
+- **playerctl**: Required for metadata and controls.
+- **Nerd Fonts**: Recommended for icons.
 
 ## Installation
 1. Clone the repository.
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Build the project:
-   ```bash
-   npm run build
-   ```
-4. Start Lyre:
-   ```bash
-   npm start
-   ```
+2. Install dependencies: `npm install`
+3. Build the project: `npm run build`
+4. Start Lyre: `npm start`
 
-## Configuration
-Lyre uses a custom `cava.conf` located in the root directory. You can adjust the number of bars, sensitivity, and other parameters there.
+## Configuration (`lyre.json`)
+You can customize Lyre by creating/editing `lyre.json` in the root directory:
+```json
+{
+  "albumArt": {
+    "enabled": true,
+    "mode": "ultra-res", 
+    "maxHeight": 20
+  },
+  "visualizer": {
+    "bars": 80,
+    "fps": 30
+  }
+}
+```
+### Art Modes:
+- `ultra-res`: (Default) Uses Braille characters for highest detail + color.
+- `high-res`: Uses half-blocks for color-accurate but lower resolution look.
+- `ascii`: Classic monochrome ASCII art style.
+
+## Keybindings
+- `Space`: Play / Pause
+- `h` / `l` (or Left/Right): Previous / Next Track
+- `j` / `k` (or Up/Down): Volume Down / Up
+- `q`: Quit
 
 ## License
 ISC

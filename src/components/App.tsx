@@ -2,15 +2,32 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useStdout, useInput, useApp } from 'ink';
 import { useCava } from '../hooks/useCava.js';
 import { useMetadata } from '../hooks/useMetadata.js';
-import { useAlbumArt } from '../hooks/useAlbumArt.js';
+import { useAlbumArt, Pixel, BraillePixel } from '../hooks/useAlbumArt.js';
 import { execa } from 'execa';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.resolve(__dirname, '../../cava.conf');
+const LYRE_CONFIG_PATH = path.resolve(__dirname, '../../lyre.json');
+
+// Load config
+let lyreConfig = {
+	albumArt: { enabled: true, mode: 'high-res' as 'high-res' | 'ascii' | 'ultra-res', maxHeight: 20 },
+	visualizer: { bars: 80, fps: 30 }
+};
+try {
+	if (fs.existsSync(LYRE_CONFIG_PATH)) {
+		lyreConfig = JSON.parse(fs.readFileSync(LYRE_CONFIG_PATH, 'utf-8'));
+	}
+} catch (e) {}
 
 const BLOCKS = [' ', ' ', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+
+const rgbToHex = (r: number, g: number, b: number) => {
+	return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
+};
 
 const VisualizerRow = ({ bars, r, height }: { bars: number[]; r: number; height: number }) => {
 	const maxLevel = height * 8;
@@ -54,7 +71,7 @@ const Visualizer = ({ bars, height = 4 }: { bars: number[]; height?: number }) =
 	for (let r = height - 1; r >= 0; r--) {
 		rows.push(<VisualizerRow key={r} bars={bars} r={r} height={height} />);
 	}
-	return <Box flexDirection="column">{rows}</Box>;
+	return <Box flexDirection="column" alignItems="center" width="100%">{rows}</Box>;
 };
 
 const ProgressBar = ({ current, total, width }: { current: number; total: number; width: number }) => {
@@ -81,6 +98,47 @@ const ProgressBar = ({ current, total, width }: { current: number; total: number
 	);
 };
 
+const AlbumArt = ({ pixels, braille, ascii, mode }: { pixels: Pixel[][]; braille: BraillePixel[][]; ascii: string; mode: string }) => {
+	if (mode === 'ascii') return <Text color="white">{ascii}</Text>;
+	
+	if (mode === 'ultra-res') {
+		if (braille.length === 0) return <Text color="gray">Loading...</Text>;
+		return (
+			<Box flexDirection="column">
+				{braille.map((row, y) => (
+					<Box key={y}>
+						{row.map((p, x) => (
+							<Text key={x} color={p.color}>{p.char}</Text>
+						))}
+					</Box>
+				))}
+			</Box>
+		);
+	}
+
+	if (pixels.length === 0) return <Text color="gray">No Art</Text>;
+
+	const rows = [];
+	for (let y = 0; y < pixels.length; y += 2) {
+		const rowPixels = [];
+		for (let x = 0; x < pixels[y]!.length; x++) {
+			const top = pixels[y]![x]!;
+			const bottom = pixels[y + 1] ? pixels[y + 1]![x] : null;
+			const topHex = rgbToHex(top.r, top.g, top.b);
+			if (bottom) {
+				const bottomHex = rgbToHex(bottom.r, bottom.g, bottom.b);
+				rowPixels.push(
+					<Text key={x} color={topHex} backgroundColor={bottomHex}>▀</Text>
+				);
+			} else {
+				rowPixels.push(<Text key={x} color={topHex}>▀</Text>);
+			}
+		}
+		rows.push(<Box key={y}>{rowPixels}</Box>);
+	}
+	return <Box flexDirection="column">{rows}</Box>;
+};
+
 export const App = () => {
 	const { stdout } = useStdout();
 	const { exit } = useApp();
@@ -104,17 +162,20 @@ export const App = () => {
 
 	const metadata = useMetadata();
 	
-	// Album art dimensions
-	const artSize = Math.max(8, Math.min(16, Math.floor(dimensions.rows / 2)));
-	const art = useAlbumArt(metadata.artUrl, artSize * 2, artSize);
+	const { enabled, mode, maxHeight } = lyreConfig.albumArt;
+	
+	const artSize = enabled 
+		? Math.max(8, Math.min(maxHeight, Math.floor(dimensions.rows / 2) - 3))
+		: 0;
+	
+	const artData = useAlbumArt(metadata.artUrl, artSize * 2, artSize, mode);
 
 	const padding = 6;
-	const artWidth = art ? artSize * 2 + 2 : 0;
+	const artWidth = enabled ? artSize * 2 + 4 : 0; 
 	const availableWidth = Math.max(20, dimensions.columns - padding - artWidth);
 	const bars = useCava(CONFIG_PATH, availableWidth);
 	const vizHeight = Math.max(2, Math.min(8, Math.floor(dimensions.rows / 4)));
 
-	// Keybindings
 	useInput((input, key) => {
 		if (input === 'q') exit();
 		if (input === ' ') execa('playerctl', ['play-pause']).catch(() => {});
@@ -135,9 +196,20 @@ export const App = () => {
 			height={dimensions.rows}
 		>
 			<Box flexDirection="row" flexGrow={1}>
-				{art && (
-					<Box borderStyle="single" borderColor="gray" marginRight={2} padding={0} alignSelf="center">
-						<Text>{art}</Text>
+				{enabled && (
+					<Box 
+						borderStyle="single" 
+						borderColor="gray" 
+						marginRight={2} 
+						padding={0} 
+						alignSelf="center"
+						width={artSize * 2 + 2}
+						height={artSize + 2}
+						justifyContent="center"
+						alignItems="center"
+						flexDirection="column"
+					>
+						<AlbumArt pixels={artData.pixels} braille={artData.braille} ascii={artData.ascii} mode={mode} />
 					</Box>
 				)}
 
@@ -176,7 +248,7 @@ export const App = () => {
 							</Text>
 							<Text color="gray" dimColor>  (Space: Play/Pause, H/L: Prev/Next)</Text>
 						</Box>
-						<Text color="gray" dimColor>v1.4.0</Text>
+						<Text color="gray" dimColor>v1.5.0</Text>
 					</Box>
 				</Box>
 			</Box>

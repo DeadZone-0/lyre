@@ -1,0 +1,11 @@
+{
+  "albumArt": {
+    "enabled": true,
+    "mode": "ultra-res",
+    "maxHeight": 20
+  },
+  "visualizer": {
+    "bars": 80,
+    "fps": 30
+  }
+}
