@@ -8,6 +8,7 @@ export interface Metadata {
 	status: string;
 	position: number;
 	duration: number;
+	artUrl: string;
 }
 
 export const useMetadata = () => {
@@ -18,6 +19,7 @@ export const useMetadata = () => {
 		status: 'Stopped',
 		position: 0,
 		duration: 0,
+		artUrl: '',
 	});
 
 	useEffect(() => {
@@ -26,9 +28,9 @@ export const useMetadata = () => {
 				const { stdout } = await execa('playerctl', [
 					'metadata',
 					'--format',
-					'{{title}}|||{{artist}}|||{{album}}|||{{position}}|||{{mpris:length}}',
+					'{{title}}|||{{artist}}|||{{album}}|||{{position}}|||{{mpris:length}}|||{{mpris:artUrl}}',
 				]);
-				const [title, artist, album, positionStr, durationStr] = stdout.split('|||');
+				const [title, artist, album, positionStr, durationStr, artUrl] = stdout.split('|||');
 				const { stdout: status } = await execa('playerctl', ['status']).catch(() => ({ stdout: 'Stopped' }));
 
 				setMetadata({
@@ -38,6 +40,7 @@ export const useMetadata = () => {
 					status: status.trim() || 'Stopped',
 					position: Number(positionStr) || 0,
 					duration: Number(durationStr) || 0,
+					artUrl: artUrl || '',
 				});
 			} catch (error) {
 				// Player not running or other error
