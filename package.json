@@ -1,26 +1,37 @@
 {
-  "name": "lyre",
+  "name": "lyre-tui",
   "version": "1.0.0",
-  "description": "",
+  "description": "A beautiful music visualizer and metadata TUI",
   "type": "module",
   "bin": {
     "lyre": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsx src/index.tsx",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "music",
+    "visualizer",
+    "tui",
+    "cava",
+    "playerctl"
+  ],
+  "author": "DeadZone-0",
   "license": "ISC",
   "dependencies": {
     "chalk": "^5.6.2",
     "execa": "^9.6.1",
-    "got": "^15.0.3",
+    "got": "^14.4.6",
     "ink": "^7.0.1",
-    "jimp": "^1.6.1",
+    "jimp": "^1.6.0",
     "react": "^19.2.5",
     "rxjs": "^7.8.2",
     "terminal-image": "^4.3.0"

@@ -25,7 +25,7 @@ A beautiful music visualizer and metadata TUI built with Node.js and Ink.
 4. Link globally: `sudo npm link`
 5. Run from anywhere: `lyre`
 
-### Via NPM (If published)
+### Via NPM
 ```bash
 npm install -g lyre-tui
 lyre
