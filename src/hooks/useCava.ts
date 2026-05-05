@@ -41,7 +41,9 @@ export const useCava = (configPath: string, barsCount: number) => {
 		});
 
 		return () => {
-			cava.kill();
+			if (!cava.killed) {
+				cava.kill('SIGTERM');
+			}
 		};
 	}, [configPath, barsCount]);
 
