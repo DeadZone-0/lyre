@@ -2,7 +2,7 @@
   "albumArt": {
     "enabled": true,
     "mode": "high-res",
-    "maxHeight": 18
+    "maxHeight": 15
   },
   "visualizer": {
     "bars": 80,

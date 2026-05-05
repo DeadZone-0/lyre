@@ -21,15 +21,7 @@ let lyreConfig = {
 try {
 	if (fs.existsSync(LYRE_CONFIG_PATH)) {
 		const saved = JSON.parse(fs.readFileSync(LYRE_CONFIG_PATH, 'utf-8'));
-		lyreConfig = {
-			...lyreConfig,
-			...saved,
-			albumArt: {
-				...lyreConfig.albumArt,
-				...saved.albumArt,
-				mode: (saved.albumArt?.mode === 'ascii') ? 'ascii' : 'high-res'
-			}
-		};
+		lyreConfig = { ...lyreConfig, ...saved };
 	}
 } catch (e) {}
 
@@ -60,7 +52,7 @@ const Visualizer = ({ bars, height = 4 }: { bars: number[]; height?: number }) =
 		return result;
 	}, [bars, height, maxLevel]);
 
-	return <Text>{vizString}</Text>;
+	return <Text wrap="truncate">{vizString}</Text>;
 };
 
 const ProgressBar = ({ current, total, width }: { current: number; total: number; width: number }) => {
@@ -68,7 +60,7 @@ const ProgressBar = ({ current, total, width }: { current: number; total: number
 	const percentage = Math.min(current / total, 1);
 	const barWidth = Math.max(10, width - 15);
 	const completed = Math.round(barWidth * percentage);
-	const remaining = barWidth - completed;
+	const remaining = Math.max(0, barWidth - completed);
 
 	const formatTime = (microseconds: number) => {
 		const seconds = Math.floor(microseconds / 1000000);
@@ -111,12 +103,16 @@ export const App = () => {
 	const metadata = useMetadata();
 	
 	const { enabled, mode, maxHeight } = lyreConfig.albumArt;
-	const artSize = enabled ? Math.max(8, Math.min(maxHeight, Math.floor(dimensions.rows / 2) - 3)) : 0;
+	const artSize = enabled 
+		? Math.max(6, Math.min(maxHeight, Math.floor(dimensions.rows / 2) - 4)) 
+		: 0;
+	
 	const artString = useAlbumArt(metadata.artUrl, artSize * 2, artSize, mode);
 
 	const padding = 6;
 	const artWidth = enabled ? artSize * 2 + 4 : 0; 
-	const availableWidth = Math.max(20, dimensions.columns - padding - artWidth);
+	const availableWidth = Math.max(30, dimensions.columns - padding - artWidth);
+	
 	const bars = useCava(CONFIG_PATH, availableWidth);
 	const vizHeight = Math.max(2, Math.min(8, Math.floor(dimensions.rows / 4)));
 
@@ -139,7 +135,7 @@ export const App = () => {
 			width={dimensions.columns}
 			height={dimensions.rows}
 		>
-			<Box flexDirection="row" flexGrow={1}>
+			<Box flexDirection="row" flexGrow={1} overflow="hidden">
 				{enabled && (
 					<Box 
 						borderStyle="single" 
@@ -151,28 +147,31 @@ export const App = () => {
 						height={artSize + 2}
 						justifyContent="center"
 						alignItems="center"
+						flexShrink={0}
 					>
-						{artString ? <Text>{artString}</Text> : <Text color="gray">No Art</Text>}
+						{artString ? (
+							<Text wrap="truncate">{artString}</Text>
+						) : (
+							<Text color="gray">No Art</Text>
+						)}
 					</Box>
 				)}
 
-				<Box flexDirection="column" flexGrow={1} justifyContent="center">
+				<Box flexDirection="column" flexGrow={1} justifyContent="center" overflow="hidden">
 					<Box flexDirection="row" justifyContent="space-between" marginBottom={1}>
-						<Box flexDirection="column">
-							<Text bold color="yellow">
-								{metadata.title.length > availableWidth - 10 
-									? metadata.title.slice(0, availableWidth - 13) + '...' 
-									: metadata.title}
+						<Box flexDirection="column" flexGrow={1}>
+							<Text bold color="yellow" wrap="truncate-end">
+								{metadata.title}
 							</Text>
-							<Text color="white" dimColor>{metadata.artist}</Text>
-							<Text italic color="gray" dimColor>{metadata.album}</Text>
+							<Text color="white" dimColor wrap="truncate-end">{metadata.artist}</Text>
+							<Text italic color="gray" dimColor wrap="truncate-end">{metadata.album}</Text>
 						</Box>
-						<Box>
+						<Box flexShrink={0} marginLeft={1}>
 							<Text color="cyan" bold italic>LYRE</Text>
 						</Box>
 					</Box>
 
-					<Box flexDirection="column" alignItems="center" marginBottom={1} width="100%">
+					<Box flexDirection="column" alignItems="center" marginBottom={1} width="100%" overflow="hidden">
 						<Visualizer bars={bars} height={vizHeight} />
 					</Box>
 
@@ -185,13 +184,14 @@ export const App = () => {
 					</Box>
 
 					<Box flexDirection="row" justifyContent="space-between" width="100%">
-						<Box>
-							<Text color={metadata.status === 'Playing' ? 'green' : 'yellow'}>
+						<Box flexShrink={1}>
+							<Text color={metadata.status === 'Playing' ? 'green' : 'yellow'} wrap="truncate">
 								{metadata.status === 'Playing' ? '●' : '○'} {metadata.status}
 							</Text>
-							<Text color="gray" dimColor>  (Space: Play/Pause, H/L: Prev/Next)</Text>
 						</Box>
-						<Text color="gray" dimColor>v1.7.0</Text>
+						<Box flexShrink={0}>
+							<Text color="gray" dimColor> v1.7.1</Text>
+						</Box>
 					</Box>
 				</Box>
 			</Box>
