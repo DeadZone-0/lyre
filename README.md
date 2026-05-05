@@ -4,10 +4,11 @@ A beautiful music visualizer and metadata TUI built with Node.js and Ink.
 
 ## Features
 - **Real-time Visualization**: Audio visualizer using `cava`.
-- **Album Art**: high-res (half-block), ultra-res (braille), or ASCII modes.
+- **Album Art**: high-res (half-block) or ASCII modes.
 - **Metadata**: Track info, progress bar, and player status via `playerctl`.
 - **Interactive Controls**: Play, pause, skip, and volume control from your keyboard.
-- **Responsive**: Adapts to any terminal size.
+- **Responsive**: Adapts to any terminal size and window resizing.
+- **Optimized**: High-performance string rendering for lag-free experience.
 
 ## Prerequisites
 - **Node.js** (v18+)
@@ -16,19 +17,31 @@ A beautiful music visualizer and metadata TUI built with Node.js and Ink.
 - **Nerd Fonts**: Recommended for icons.
 
 ## Installation
+
+### From Source
 1. Clone the repository.
 2. Install dependencies: `npm install`
 3. Build the project: `npm run build`
-4. Start Lyre: `npm start`
+4. Link globally: `sudo npm link`
+5. Run from anywhere: `lyre`
 
-## Configuration (`lyre.json`)
-You can customize Lyre by creating/editing `lyre.json` in the root directory:
+### Via NPM (If published)
+```bash
+npm install -g lyre-tui
+lyre
+```
+
+## Configuration
+Lyre looks for configuration in `~/.config/lyre/`. 
+
+### `lyre.json`
+You can customize the UI by creating `~/.config/lyre/lyre.json`:
 ```json
 {
   "albumArt": {
     "enabled": true,
-    "mode": "ultra-res", 
-    "maxHeight": 20
+    "mode": "high-res", 
+    "maxHeight": 18
   },
   "visualizer": {
     "bars": 80,
@@ -36,10 +49,6 @@ You can customize Lyre by creating/editing `lyre.json` in the root directory:
   }
 }
 ```
-### Art Modes:
-- `ultra-res`: (Default) Uses Braille characters for highest detail + color.
-- `high-res`: Uses half-blocks for color-accurate but lower resolution look.
-- `ascii`: Classic monochrome ASCII art style.
 
 ## Keybindings
 - `Space`: Play / Pause

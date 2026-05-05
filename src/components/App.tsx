@@ -7,11 +7,40 @@ import { execa } from 'execa';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import os from 'os';
 import chalk from 'chalk';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CONFIG_PATH = path.resolve(__dirname, '../../cava.conf');
-const LYRE_CONFIG_PATH = path.resolve(__dirname, '../../lyre.json');
+
+// Resolve config paths (Support both local dev and global install)
+const getPaths = () => {
+	const localConfig = path.resolve(__dirname, '../../lyre.json');
+	const localCava = path.resolve(__dirname, '../../cava.conf');
+	
+	const globalDir = path.join(os.homedir(), '.config', 'lyre');
+	const globalConfig = path.join(globalDir, 'lyre.json');
+	const globalCava = path.join(globalDir, 'cava.conf');
+
+	if (fs.existsSync(localConfig)) {
+		return { config: localConfig, cava: localCava };
+	}
+	
+	// Ensure global dir exists if not in local dev
+	if (!fs.existsSync(globalDir)) {
+		fs.mkdirSync(globalDir, { recursive: true });
+	}
+	
+	// Create default cava.conf if it doesn't exist globally
+	if (!fs.existsSync(globalCava)) {
+		fs.writeFileSync(globalCava, `[general]\nframerate = 30\nbars = 100\nautosens = 1\n\n[output]\nmethod = raw\nraw_target = /dev/stdout\ndata_format = ascii\nascii_max_range = 1000\n\n[smoothing]\nmonstercat = 1\nintegral = 85\ngravity = 100\n`);
+	}
+
+	return { config: globalConfig, cava: globalCava };
+};
+
+const paths = getPaths();
+const CONFIG_PATH = paths.cava;
+const LYRE_CONFIG_PATH = paths.config;
 
 // Load config
 let lyreConfig = {
@@ -21,7 +50,15 @@ let lyreConfig = {
 try {
 	if (fs.existsSync(LYRE_CONFIG_PATH)) {
 		const saved = JSON.parse(fs.readFileSync(LYRE_CONFIG_PATH, 'utf-8'));
-		lyreConfig = { ...lyreConfig, ...saved };
+		lyreConfig = {
+			...lyreConfig,
+			...saved,
+			albumArt: {
+				...lyreConfig.albumArt,
+				...saved.albumArt,
+				mode: (saved.albumArt?.mode === 'ascii') ? 'ascii' : 'high-res'
+			}
+		};
 	}
 } catch (e) {}
 
@@ -77,6 +114,12 @@ const ProgressBar = ({ current, total, width }: { current: number; total: number
 			<Text color="gray" dimColor> {formatTime(total)}</Text>
 		</Box>
 	);
+};
+
+const AlbumArt = ({ pixels, ascii, mode }: { pixels: string; ascii: string; mode: string }) => {
+	if (mode === 'ascii') return <Text color="white">{ascii}</Text>;
+	if (!pixels) return <Text color="gray">No Art</Text>;
+	return <Text wrap="truncate">{pixels}</Text>;
 };
 
 export const App = () => {
@@ -149,11 +192,7 @@ export const App = () => {
 						alignItems="center"
 						flexShrink={0}
 					>
-						{artString ? (
-							<Text wrap="truncate">{artString}</Text>
-						) : (
-							<Text color="gray">No Art</Text>
-						)}
+						<AlbumArt pixels={artString} ascii={artString} mode={mode} />
 					</Box>
 				)}
 
@@ -190,7 +229,7 @@ export const App = () => {
 							</Text>
 						</Box>
 						<Box flexShrink={0}>
-							<Text color="gray" dimColor> v1.7.1</Text>
+							<Text color="gray" dimColor> v1.8.0</Text>
 						</Box>
 					</Box>
 				</Box>
