@@ -1,8 +1,8 @@
 {
   "albumArt": {
     "enabled": true,
-    "mode": "ultra-res",
-    "maxHeight": 20
+    "mode": "high-res",
+    "maxHeight": 18
   },
   "visualizer": {
     "bars": 80,

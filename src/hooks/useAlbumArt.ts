@@ -1,26 +1,14 @@
 import { useState, useEffect } from 'react';
 import got from 'got';
 import { Jimp } from 'jimp';
+import chalk from 'chalk';
 
-export interface Pixel {
-	r: number;
-	g: number;
-	b: number;
-}
-
-export interface BraillePixel {
-	char: string;
-	color: string;
-}
-
-export const useAlbumArt = (url: string, width: number, height: number, mode: 'high-res' | 'ascii' | 'ultra-res') => {
-	const [art, setArt] = useState<{ pixels: Pixel[][]; braille: BraillePixel[][]; ascii: string }>({ 
-		pixels: [], braille: [], ascii: '' 
-	});
+export const useAlbumArt = (url: string, width: number, height: number, mode: 'high-res' | 'ascii') => {
+	const [artString, setArtString] = useState<string>('');
 
 	useEffect(() => {
 		if (!url) {
-			setArt({ pixels: [], braille: [], ascii: '' });
+			setArtString('');
 			return;
 		}
 
@@ -30,56 +18,34 @@ export const useAlbumArt = (url: string, width: number, height: number, mode: 'h
 				// @ts-ignore
 				const image = await Jimp.read(Buffer.from(response.body));
 				
+				// Sharpen
+				image.convolute([[0, -1, 0], [-1, 5, -1], [0, -1, 0]]);
+
 				if (mode === 'high-res') {
 					image.resize({ w: width, h: height * 2 });
-					const grid: Pixel[][] = [];
-					for (let y = 0; y < image.bitmap.height; y++) {
-						const row: Pixel[] = [];
+					let result = '';
+					for (let y = 0; y < image.bitmap.height; y += 2) {
 						for (let x = 0; x < image.bitmap.width; x++) {
-							const idx = (y * image.bitmap.width + x) * 4;
-							row.push({
-								r: image.bitmap.data[idx],
-								g: image.bitmap.data[idx + 1],
-								b: image.bitmap.data[idx + 2],
-							});
+							const idx1 = (y * image.bitmap.width + x) * 4;
+							const r1 = image.bitmap.data[idx1];
+							const g1 = image.bitmap.data[idx1 + 1];
+							const b1 = image.bitmap.data[idx1 + 2];
+
+							const hasBottom = (y + 1) < image.bitmap.height;
+							const idx2 = ((y + 1) * image.bitmap.width + x) * 4;
+							const r2 = hasBottom ? image.bitmap.data[idx2] : 0;
+							const g2 = hasBottom ? image.bitmap.data[idx2 + 1] : 0;
+							const b2 = hasBottom ? image.bitmap.data[idx2 + 2] : 0;
+
+							if (hasBottom) {
+								result += chalk.rgb(r1, g1, b1).bgRgb(r2, g2, b2)('▀');
+							} else {
+								result += chalk.rgb(r1, g1, b1)('▀');
+							}
 						}
-						grid.push(row);
+						if (y < image.bitmap.height - 2) result += '\n';
 					}
-					setArt({ pixels: grid, braille: [], ascii: '' });
-				} else if (mode === 'ultra-res') {
-					// Braille mode with color
-					image.resize({ w: width * 2, h: height * 4 });
-					const brailleGrid: BraillePixel[][] = [];
-					
-					for (let y = 0; y < image.bitmap.height; y += 4) {
-						const row: BraillePixel[] = [];
-						for (let x = 0; x < image.bitmap.width; x += 2) {
-							let charCode = 0;
-							const dots = [
-								[0, 0, 0x01], [0, 1, 0x02], [0, 2, 0x04],
-								[1, 0, 0x08], [1, 1, 0x10], [1, 2, 0x20],
-								[0, 3, 0x40], [1, 3, 0x80]
-							];
-							let tr = 0, tg = 0, tb = 0, count = 0;
-							dots.forEach(([dx, dy, bit]) => {
-								const py = y + dy;
-								const px = x + dx;
-								if (py < image.bitmap.height && px < image.bitmap.width) {
-									const idx = (py * image.bitmap.width + px) * 4;
-									const r = image.bitmap.data[idx];
-									const g = image.bitmap.data[idx + 1];
-									const b = image.bitmap.data[idx + 2];
-									if ((r + g + b) / 3 > 120) charCode |= bit;
-									tr += r; tg += g; tb += b;
-									count++;
-								}
-							});
-							const color = '#' + [Math.floor(tr/count), Math.floor(tg/count), Math.floor(tb/count)].map(x => x.toString(16).padStart(2, '0')).join('');
-							row.push({ char: String.fromCharCode(0x2800 + charCode), color });
-						}
-						brailleGrid.push(row);
-					}
-					setArt({ pixels: [], braille: brailleGrid, ascii: '' });
+					setArtString(result);
 				} else {
 					image.resize({ w: width, h: height });
 					image.greyscale();
@@ -94,15 +60,15 @@ export const useAlbumArt = (url: string, width: number, height: number, mode: 'h
 						}
 						if (y < image.bitmap.height - 1) asciiResult += '\n';
 					}
-					setArt({ pixels: [], braille: [], ascii: asciiResult });
+					setArtString(asciiResult);
 				}
 			} catch (error) {
-				setArt({ pixels: [], braille: [], ascii: '' });
+				setArtString('');
 			}
 		};
 
 		fetchArt();
 	}, [url, width, height, mode]);
 
-	return art;
+	return artString;
 };

@@ -2,11 +2,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useStdout, useInput, useApp } from 'ink';
 import { useCava } from '../hooks/useCava.js';
 import { useMetadata } from '../hooks/useMetadata.js';
-import { useAlbumArt, Pixel, BraillePixel } from '../hooks/useAlbumArt.js';
+import { useAlbumArt } from '../hooks/useAlbumArt.js';
 import { execa } from 'execa';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import chalk from 'chalk';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.resolve(__dirname, '../../cava.conf');
@@ -14,64 +15,52 @@ const LYRE_CONFIG_PATH = path.resolve(__dirname, '../../lyre.json');
 
 // Load config
 let lyreConfig = {
-	albumArt: { enabled: true, mode: 'high-res' as 'high-res' | 'ascii' | 'ultra-res', maxHeight: 20 },
+	albumArt: { enabled: true, mode: 'high-res' as 'high-res' | 'ascii', maxHeight: 18 },
 	visualizer: { bars: 80, fps: 30 }
 };
 try {
 	if (fs.existsSync(LYRE_CONFIG_PATH)) {
-		lyreConfig = JSON.parse(fs.readFileSync(LYRE_CONFIG_PATH, 'utf-8'));
+		const saved = JSON.parse(fs.readFileSync(LYRE_CONFIG_PATH, 'utf-8'));
+		lyreConfig = {
+			...lyreConfig,
+			...saved,
+			albumArt: {
+				...lyreConfig.albumArt,
+				...saved.albumArt,
+				mode: (saved.albumArt?.mode === 'ascii') ? 'ascii' : 'high-res'
+			}
+		};
 	}
 } catch (e) {}
 
 const BLOCKS = [' ', ' ', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
-const rgbToHex = (r: number, g: number, b: number) => {
-	return '#' + [r, g, b].map(x => x.toString(16).padStart(2, '0')).join('');
-};
-
-const VisualizerRow = ({ bars, r, height }: { bars: number[]; r: number; height: number }) => {
-	const maxLevel = height * 8;
-	const segments = useMemo(() => {
-		const result: { text: string; color: string }[] = [];
-		if (bars.length === 0) return result;
-		let currentText = '';
-		let currentColor = '';
-		bars.forEach((v, i) => {
-			const level = Math.floor((v / 1000) * maxLevel);
-			const rowLevel = level - (r * 8);
-			const char = rowLevel <= 0 ? BLOCKS[0] : (rowLevel >= 8 ? BLOCKS[8] : BLOCKS[rowLevel]);
-			let color = 'cyan';
-			const pos = i / bars.length;
-			if (pos < 0.25) color = 'blue';
-			else if (pos > 0.75) color = 'magenta';
-			else if (pos > 0.5) color = 'red';
-			if (color === currentColor) {
-				currentText += char;
-			} else {
-				if (currentText) result.push({ text: currentText, color: currentColor });
-				currentText = char;
-				currentColor = color;
-			}
-		});
-		if (currentText) result.push({ text: currentText, color: currentColor });
-		return result;
-	}, [bars, r, height, maxLevel]);
-
-	return (
-		<Box flexDirection="row">
-			{segments.map((s, i) => (
-				<Text key={i} color={s.color}>{s.text}</Text>
-			))}
-		</Box>
-	);
-};
-
 const Visualizer = ({ bars, height = 4 }: { bars: number[]; height?: number }) => {
-	const rows = [];
-	for (let r = height - 1; r >= 0; r--) {
-		rows.push(<VisualizerRow key={r} bars={bars} r={r} height={height} />);
-	}
-	return <Box flexDirection="column" alignItems="center" width="100%">{rows}</Box>;
+	const maxLevel = height * 8;
+	
+	const vizString = useMemo(() => {
+		let result = '';
+		for (let r = height - 1; r >= 0; r--) {
+			for (let i = 0; i < bars.length; i++) {
+				const v = bars[i] || 0;
+				const level = Math.floor((v / 1000) * maxLevel);
+				const rowLevel = level - (r * 8);
+				const char = rowLevel <= 0 ? BLOCKS[0] : (rowLevel >= 8 ? BLOCKS[8] : BLOCKS[rowLevel]);
+				
+				let colorFunc = chalk.cyan;
+				const pos = i / bars.length;
+				if (pos < 0.25) colorFunc = chalk.blue;
+				else if (pos > 0.75) colorFunc = chalk.magenta;
+				else if (pos > 0.5) colorFunc = chalk.red;
+				
+				result += colorFunc(char);
+			}
+			if (r > 0) result += '\n';
+		}
+		return result;
+	}, [bars, height, maxLevel]);
+
+	return <Text>{vizString}</Text>;
 };
 
 const ProgressBar = ({ current, total, width }: { current: number; total: number; width: number }) => {
@@ -98,47 +87,6 @@ const ProgressBar = ({ current, total, width }: { current: number; total: number
 	);
 };
 
-const AlbumArt = ({ pixels, braille, ascii, mode }: { pixels: Pixel[][]; braille: BraillePixel[][]; ascii: string; mode: string }) => {
-	if (mode === 'ascii') return <Text color="white">{ascii}</Text>;
-	
-	if (mode === 'ultra-res') {
-		if (braille.length === 0) return <Text color="gray">Loading...</Text>;
-		return (
-			<Box flexDirection="column">
-				{braille.map((row, y) => (
-					<Box key={y}>
-						{row.map((p, x) => (
-							<Text key={x} color={p.color}>{p.char}</Text>
-						))}
-					</Box>
-				))}
-			</Box>
-		);
-	}
-
-	if (pixels.length === 0) return <Text color="gray">No Art</Text>;
-
-	const rows = [];
-	for (let y = 0; y < pixels.length; y += 2) {
-		const rowPixels = [];
-		for (let x = 0; x < pixels[y]!.length; x++) {
-			const top = pixels[y]![x]!;
-			const bottom = pixels[y + 1] ? pixels[y + 1]![x] : null;
-			const topHex = rgbToHex(top.r, top.g, top.b);
-			if (bottom) {
-				const bottomHex = rgbToHex(bottom.r, bottom.g, bottom.b);
-				rowPixels.push(
-					<Text key={x} color={topHex} backgroundColor={bottomHex}>▀</Text>
-				);
-			} else {
-				rowPixels.push(<Text key={x} color={topHex}>▀</Text>);
-			}
-		}
-		rows.push(<Box key={y}>{rowPixels}</Box>);
-	}
-	return <Box flexDirection="column">{rows}</Box>;
-};
-
 export const App = () => {
 	const { stdout } = useStdout();
 	const { exit } = useApp();
@@ -163,12 +111,8 @@ export const App = () => {
 	const metadata = useMetadata();
 	
 	const { enabled, mode, maxHeight } = lyreConfig.albumArt;
-	
-	const artSize = enabled 
-		? Math.max(8, Math.min(maxHeight, Math.floor(dimensions.rows / 2) - 3))
-		: 0;
-	
-	const artData = useAlbumArt(metadata.artUrl, artSize * 2, artSize, mode);
+	const artSize = enabled ? Math.max(8, Math.min(maxHeight, Math.floor(dimensions.rows / 2) - 3)) : 0;
+	const artString = useAlbumArt(metadata.artUrl, artSize * 2, artSize, mode);
 
 	const padding = 6;
 	const artWidth = enabled ? artSize * 2 + 4 : 0; 
@@ -207,9 +151,8 @@ export const App = () => {
 						height={artSize + 2}
 						justifyContent="center"
 						alignItems="center"
-						flexDirection="column"
 					>
-						<AlbumArt pixels={artData.pixels} braille={artData.braille} ascii={artData.ascii} mode={mode} />
+						{artString ? <Text>{artString}</Text> : <Text color="gray">No Art</Text>}
 					</Box>
 				)}
 
@@ -229,7 +172,7 @@ export const App = () => {
 						</Box>
 					</Box>
 
-					<Box flexDirection="column" alignItems="center" marginBottom={1}>
+					<Box flexDirection="column" alignItems="center" marginBottom={1} width="100%">
 						<Visualizer bars={bars} height={vizHeight} />
 					</Box>
 
@@ -248,7 +191,7 @@ export const App = () => {
 							</Text>
 							<Text color="gray" dimColor>  (Space: Play/Pause, H/L: Prev/Next)</Text>
 						</Box>
-						<Text color="gray" dimColor>v1.5.0</Text>
+						<Text color="gray" dimColor>v1.7.0</Text>
 					</Box>
 				</Box>
 			</Box>
