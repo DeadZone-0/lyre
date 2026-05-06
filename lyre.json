@@ -2,10 +2,15 @@
   "albumArt": {
     "enabled": true,
     "mode": "high-res",
-    "maxHeight": 15
+    "maxHeight": 18
   },
   "visualizer": {
     "bars": 80,
     "fps": 30
+  },
+  "lyrics": {
+    "enabled": true,
+    "activeColor": "yellow",
+    "inactiveColor": "gray"
   }
 }
