@@ -8,11 +8,40 @@ import { execa } from 'execa';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import os from 'os';
 import chalk from 'chalk';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CONFIG_PATH = path.resolve(__dirname, '../../cava.conf');
-const LYRE_CONFIG_PATH = path.resolve(__dirname, '../../lyre.json');
+
+// Resolve config paths (Support both local dev and global install)
+const getPaths = () => {
+	const localConfig = path.resolve(__dirname, '../../lyre.json');
+	const localCava = path.resolve(__dirname, '../../cava.conf');
+	
+	const globalDir = path.join(os.homedir(), '.config', 'lyre');
+	const globalConfig = path.join(globalDir, 'lyre.json');
+	const globalCava = path.join(globalDir, 'cava.conf');
+
+	// If running in local dev directory, prioritize local files
+	if (fs.existsSync(localConfig) && fs.existsSync(localCava)) {
+		return { config: localConfig, cava: localCava };
+	}
+	
+	// Otherwise use/create global config
+	if (!fs.existsSync(globalDir)) {
+		fs.mkdirSync(globalDir, { recursive: true });
+	}
+	
+	if (!fs.existsSync(globalCava)) {
+		fs.writeFileSync(globalCava, `[general]\nframerate = 30\nbars = 100\nautosens = 1\n\n[output]\nmethod = raw\nraw_target = /dev/stdout\ndata_format = ascii\nascii_max_range = 1000\n\n[smoothing]\nmonstercat = 1\nintegral = 85\ngravity = 100\n`);
+	}
+
+	return { config: globalConfig, cava: globalCava };
+};
+
+const paths = getPaths();
+const CONFIG_PATH = paths.cava;
+const LYRE_CONFIG_PATH = paths.config;
 
 // Load config
 let lyreConfig = {
@@ -23,7 +52,15 @@ let lyreConfig = {
 try {
 	if (fs.existsSync(LYRE_CONFIG_PATH)) {
 		const saved = JSON.parse(fs.readFileSync(LYRE_CONFIG_PATH, 'utf-8'));
-		lyreConfig = { ...lyreConfig, ...saved };
+		lyreConfig = {
+			...lyreConfig,
+			...saved,
+			albumArt: {
+				...lyreConfig.albumArt,
+				...saved.albumArt,
+				mode: (saved.albumArt?.mode === 'ascii') ? 'ascii' : 'high-res'
+			}
+		};
 	}
 } catch (e) {}
 
@@ -43,7 +80,7 @@ const Visualizer = ({ bars, height = 4, type = 'horizontal' }: { bars: number[];
 				const pos = i / bars.length;
 				if (pos < 0.2) colorFunc = chalk.blue;
 				else if (pos > 0.8) colorFunc = chalk.magenta;
-				result += colorFunc(BLOCKS[level]);
+				result += colorFunc(BLOCKS[Math.min(level, 8)]);
 			}
 		} else {
 			for (let r = height - 1; r >= 0; r--) {
@@ -51,7 +88,7 @@ const Visualizer = ({ bars, height = 4, type = 'horizontal' }: { bars: number[];
 					const v = bars[i] || 0;
 					const level = Math.floor((v / 1000) * maxLevel);
 					const rowLevel = level - (r * 8);
-					const char = rowLevel <= 0 ? BLOCKS[0] : (rowLevel >= 8 ? BLOCKS[8] : BLOCKS[rowLevel]);
+					const char = rowLevel <= 0 ? BLOCKS[0] : (rowLevel >= 8 ? BLOCKS[8] : BLOCKS[Math.min(rowLevel, 8)]);
 					
 					let colorFunc = chalk.cyan;
 					const pos = i / bars.length;
@@ -100,14 +137,12 @@ const LyricsMode = ({
 			</Box>
 			<Box flexDirection="column" alignItems="center">
 				{displayLyrics.length > 0 ? displayLyrics.map((line, i) => {
-					const isAtTopOrBottom = i === 0 || i === displayLyrics.length - 1;
 					const isActive = (start + i) === activeIndex;
 					return (
 						<Box key={i} marginY={0}>
 							<Text 
 								color={isActive ? lyreConfig.lyrics.activeColor : lyreConfig.lyrics.inactiveColor}
 								bold={isActive}
-								dimColor={isAtTopOrBottom}
 								wrap="truncate-end"
 							>
 								{isActive ? ` ${line.text} ` : line.text}
@@ -174,7 +209,7 @@ export const App = () => {
 	}, [stdout]);
 
 	const metadata = useMetadata();
-	const { lyrics, isLoading } = useLyrics(metadata.title, metadata.artist, metadata.duration);
+	const { lyrics } = useLyrics(metadata.title, metadata.artist, metadata.duration);
 	
 	const { enabled, mode, maxHeight } = lyreConfig.albumArt;
 	const artSize = enabled ? Math.max(6, Math.min(maxHeight, Math.floor(dimensions.rows / 2) - 4)) : 0;
@@ -280,7 +315,7 @@ export const App = () => {
 						<Text color="gray" dimColor> (V: Toggle Lyrics)</Text>
 					</Box>
 					<Box flexShrink={0}>
-						<Text color="gray" dimColor> v1.9.0</Text>
+						<Text color="gray" dimColor> v1.1.2</Text>
 					</Box>
 				</Box>
 			</Box>
