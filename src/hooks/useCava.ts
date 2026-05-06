@@ -9,6 +9,12 @@ export const useCava = (configPath: string, barsCount: number) => {
 	useEffect(() => {
 		const cava = execa('cava', ['-p', configPath]);
 
+		// Prevent "Unexpected error" crash on exit by catching the termination
+		cava.catch((error) => {
+			if (error.isTerminated) return;
+			// Only log actual non-termination errors if needed
+		});
+
 		cava.stdout?.on('data', (data: Buffer) => {
 			bufferRef.current += data.toString();
 			const lines = bufferRef.current.split('\n');
@@ -18,6 +24,8 @@ export const useCava = (configPath: string, barsCount: number) => {
 			// Cap updates to ~30fps to match cava config and save CPU
 			if (lines.length > 0 && now - lastUpdateRef.current > 30) {
 				const lastCompleteFrame = lines[lines.length - 1];
+				if (!lastCompleteFrame) return;
+
 				const values = lastCompleteFrame
 					.split(';')
 					.filter(Boolean)
