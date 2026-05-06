@@ -172,5 +172,15 @@ Install `playerctl` from your package manager (`sudo apt install playerctl`, `su
 ### Orphaned cava processes
 Lyre cleans up the cava subprocess on exit (via `q` or `Ctrl+C`). If you see lingering processes, kill them with `pkill cava`.
 
+## Star History
+
+<a href="https://www.star-history.com/?repos=DeadZone-0%2Flyre&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=DeadZone-0/lyre&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=DeadZone-0/lyre&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=DeadZone-0/lyre&type=date&legend=top-left" />
+ </picture>
+</a>
+
 ## License
 ISC
