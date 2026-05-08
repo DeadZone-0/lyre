@@ -276,6 +276,7 @@ export const App = () => {
 	const [isLyricsMode, setIsLyricsMode] = useState(false);
 	const [isThemeMode, setIsThemeMode] = useState(false);
 	const [config, setConfig] = useState(initialConfig);
+	const [isArtVisible, setIsArtVisible] = useState(config.albumArt.enabled);
 
 	useEffect(() => {
 		const onResize = () => setDimensions({ columns: stdout?.columns || 80, rows: stdout?.rows || 24 });
@@ -286,12 +287,12 @@ export const App = () => {
 	const metadata = useMetadata();
 	const { lyrics } = useLyrics(metadata.title, metadata.artist, metadata.duration);
 	
-	const { enabled, mode, maxHeight } = config.albumArt;
-	const artSize = enabled ? Math.max(6, Math.min(maxHeight, Math.floor(dimensions.rows / 2) - 4)) : 0;
+	const { mode, maxHeight } = config.albumArt;
+	const artSize = isArtVisible ? Math.max(6, Math.min(maxHeight, Math.floor(dimensions.rows / 2) - 4)) : 0;
 	const artString = useAlbumArt(metadata.artUrl, artSize * 2, artSize, mode);
 
 	const padding = 6;
-	const artWidth = enabled && !isLyricsMode && !isThemeMode ? artSize * 2 + 4 : 0; 
+	const artWidth = isArtVisible && !isLyricsMode && !isThemeMode ? artSize * 2 + 4 : 0; 
 	const availableWidth = Math.max(30, dimensions.columns - padding - artWidth);
 	
 	const bars = useCava(CONFIG_PATH, availableWidth);
@@ -302,6 +303,7 @@ export const App = () => {
 		
 		if (input === 'q') exit();
 		if (input === 't') setIsThemeMode(true);
+		if (input === 'a') setIsArtVisible(!isArtVisible);
 		if (input === ' ') execa('playerctl', ['play-pause']).catch(() => {});
 		if (key.rightArrow || input === 'l') execa('playerctl', ['next']).catch(() => {});
 		if (key.leftArrow || input === 'h') execa('playerctl', ['previous']).catch(() => {});
@@ -340,7 +342,7 @@ export const App = () => {
 					/>
 				) : (
 					<>
-						{enabled && (
+						{isArtVisible && (
 							<Box 
 								borderStyle="single" 
 								borderColor="gray" 
@@ -393,7 +395,7 @@ export const App = () => {
 						<Text color={metadata.status === 'Playing' ? 'green' : 'yellow'} wrap="truncate">
 							{metadata.status === 'Playing' ? '●' : '○'} {metadata.status}
 						</Text>
-						<Text color="gray" dimColor> (V: Lyrics | T: Themes)</Text>
+						<Text color="gray" dimColor> (V: Lyrics | T: Themes | A: Art)</Text>
 					</Box>
 					<Box flexShrink={0}>
 						<Text color="gray" dimColor> v1.2.0</Text>
