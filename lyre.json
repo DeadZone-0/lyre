@@ -1,13 +1,13 @@
 {
   "albumArt": {
-    "enabled": true,
+    "enabled": false,
     "mode": "high-res",
     "maxHeight": 18
   },
   "visualizer": {
     "bars": 80,
     "fps": 30,
-    "theme": "retro"
+    "theme": "ocean"
   },
   "lyrics": {
     "enabled": true,

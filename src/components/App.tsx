@@ -43,11 +43,13 @@ const LYRE_CONFIG_PATH = paths.config;
 
 const THEMES = {
 	default: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['blue', 'cyan', 'magenta', 'red'], gradientDirection: 'horizontal', peakColor: '' },
-	cyberpunk: { style: 'stacked', char: '■', emptyChar: ' ', gradient: ['cyan', 'magenta', 'yellow'], gradientDirection: 'vertical', peakColor: 'red' },
-	retro: { style: 'stacked', char: '━', emptyChar: ' ', gradient: ['green', 'yellow', 'red'], gradientDirection: 'vertical', peakColor: 'red' },
-	ocean: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['blue', 'blueBright', 'cyan'], gradientDirection: 'vertical', peakColor: 'white' },
-	matrix: { style: 'stacked', char: '█', emptyChar: ' ', gradient: ['green', 'greenBright', 'white'], gradientDirection: 'vertical', peakColor: 'white' },
-	fire: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['red', 'yellow', 'white'], gradientDirection: 'vertical', peakColor: '' }
+	cyberpunk: { style: 'stacked', char: '■', emptyChar: ' ', gradient: ['#00ffff', '#ff00ff', '#ffff00'], gradientDirection: 'vertical', peakColor: '#ffffff' },
+	retro: { style: 'stacked', char: '━', emptyChar: ' ', gradient: ['#00ff00', '#aaff00', '#ffff00', '#ff8800', '#ff0000'], gradientDirection: 'vertical', peakColor: '#ff0000' },
+	ocean: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['#000044', '#0044ff', '#00ffff'], gradientDirection: 'vertical', peakColor: '#ffffff' },
+	matrix: { style: 'stacked', char: '█', emptyChar: ' ', gradient: ['#003300', '#00ff00', '#ccffcc'], gradientDirection: 'vertical', peakColor: '#ffffff' },
+	fire: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['#330000', '#ff0000', '#ff8800', '#ffff00', '#ffffff'], gradientDirection: 'vertical', peakColor: '' },
+	synthwave: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['#091833', '#133e7c', '#711c91', '#ea00d9', '#0abdc6'], gradientDirection: 'vertical', peakColor: '#ffffff' },
+	glacier: { style: 'stacked', char: '■', emptyChar: ' ', gradient: ['#002244', '#0066aa', '#00aaff', '#aaffff'], gradientDirection: 'vertical', peakColor: '#ffffff' }
 };
 
 let initialConfig = {
@@ -203,7 +205,7 @@ const AlbumArt = ({ pixels, mode }: { pixels: string; mode: string }) => {
 	return <Text wrap="truncate">{pixels}</Text>;
 };
 
-const ThemeSelectorMode = ({ activeTheme, onSelect, onCancel }: { activeTheme: string; onSelect: (t: string) => void; onCancel: () => void }) => {
+const ThemeSelectorMode = ({ activeTheme, onSelect, onCancel, height }: { activeTheme: string; onSelect: (t: string) => void; onCancel: () => void; height: number }) => {
 	const themes = Object.keys(THEMES);
 	const [selectedIndex, setSelectedIndex] = useState(Math.max(0, themes.indexOf(activeTheme)));
 
@@ -214,13 +216,25 @@ const ThemeSelectorMode = ({ activeTheme, onSelect, onCancel }: { activeTheme: s
 		if (key.return || input === ' ') onSelect(themes[selectedIndex]!);
 	});
 
+	// Calculate visible items to avoid clipping
+	const maxVisible = Math.max(3, height - 4); // leaving space for headers/footers
+	let startIndex = Math.max(0, selectedIndex - Math.floor(maxVisible / 2));
+	let endIndex = startIndex + maxVisible;
+	if (endIndex > themes.length) {
+		endIndex = themes.length;
+		startIndex = Math.max(0, endIndex - maxVisible);
+	}
+	const visibleThemes = themes.slice(startIndex, endIndex);
+
 	return (
 		<Box flexDirection="column" alignItems="center" justifyContent="center" height="100%" width="100%">
 			<Box marginBottom={1} paddingX={2} borderStyle="single" borderColor="magenta">
 				<Text bold color="yellow">Theme Selector</Text>
 			</Box>
 			<Box flexDirection="column" alignItems="flex-start" paddingX={2} paddingY={1}>
-				{themes.map((theme, index) => {
+				{startIndex > 0 && <Text color="gray">  ▲</Text>}
+				{visibleThemes.map((theme) => {
+					const index = themes.indexOf(theme);
 					const isSelected = index === selectedIndex;
 					return (
 						<Text key={theme} color={isSelected ? 'cyan' : 'white'} bold={isSelected}>
@@ -228,6 +242,7 @@ const ThemeSelectorMode = ({ activeTheme, onSelect, onCancel }: { activeTheme: s
 						</Text>
 					);
 				})}
+				{endIndex < themes.length && <Text color="gray">  ▼</Text>}
 			</Box>
 			<Box marginTop={1}>
 				<Text color="gray" dimColor>(Enter: Select | T/Q: Cancel | Up/Down: Navigate)</Text>
@@ -294,6 +309,7 @@ export const App = () => {
 						activeTheme={config.visualizer.theme} 
 						onSelect={handleThemeSelect} 
 						onCancel={() => setIsThemeMode(false)} 
+						height={dimensions.rows - 6}
 					/>
 				) : isLyricsMode ? (
 					<LyricsMode 
