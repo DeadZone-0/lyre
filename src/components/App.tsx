@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useStdout, useInput, useApp } from 'ink';
 import { useCava } from '../hooks/useCava.js';
 import { useMetadata } from '../hooks/useMetadata.js';
@@ -89,7 +89,7 @@ try {
 	}
 } catch (e) {}
 
-const BLOCKS = [' ', ' ', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
+const BLOCKS = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
 const Visualizer = ({ bars, height = 4, type = 'horizontal', activeTheme = 'default' }: { bars: number[]; height?: number; type?: 'horizontal' | 'minimal'; activeTheme?: string }) => {
 	const theme = (loadedThemes as any)[activeTheme] || loadedThemes.default;
@@ -218,8 +218,8 @@ const ProgressBar = ({ current, total, width }: { current: number; total: number
 	);
 };
 
-const AlbumArt = ({ pixels, mode }: { pixels: string; mode: string }) => {
-	if (!pixels) return <Text color="gray">No Art</Text>;
+const AlbumArt = ({ pixels }: { pixels: string }) => {
+	if (!pixels) return <Text color="gray" dimColor>♪</Text>;
 	return <Text wrap="truncate">{pixels}</Text>;
 };
 
@@ -355,20 +355,18 @@ export const App = () => {
 								alignItems="center"
 								flexShrink={0}
 							>
-								<AlbumArt pixels={artString} mode={mode} />
+								<AlbumArt pixels={artString} />
 							</Box>
 						)}
 
 						<Box flexDirection="column" flexGrow={1} justifyContent="center" overflow="hidden">
-							<Box flexDirection="row" justifyContent="space-between" marginBottom={1}>
+							<Box flexDirection="row" marginBottom={1} alignItems="flex-start">
 								<Box flexDirection="column" flexGrow={1}>
 									<Text bold color="yellow" wrap="truncate-end">{metadata.title}</Text>
 									<Text color="white" dimColor wrap="truncate-end">{metadata.artist}</Text>
 									<Text italic color="gray" dimColor wrap="truncate-end">{metadata.album}</Text>
 								</Box>
-								<Box flexShrink={0} marginLeft={1}>
-									<Text color="cyan" bold italic>LYRE</Text>
-								</Box>
+								<Box marginRight={5}><Text color="cyan" bold italic>LYRE</Text></Box>
 							</Box>
 
 							<Box flexDirection="column" alignItems="center" marginBottom={1} width="100%" overflow="hidden">

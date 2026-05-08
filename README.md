@@ -113,7 +113,8 @@ Lyre uses [cava](https://github.com/karlstav/cava) under the hood. The file at `
 | Option | Default | Description |
 |--------|---------|-------------|
 | `framerate` | `30` | Output refresh rate in Hz. Should match `visualizer.fps` in `lyre.json`. |
-| `bars` | `100` | Number of frequency bars cava produces. |
+| `bars` | `100` | Number of frequency bars cava produces. Lyre samples from these to fit the configured display width. |
+| `autosens` | `1` | Automatically adjusts sensitivity to prevent clipping. Set to `0` for manual control via `sensitivity`. |
 
 #### `[output]`
 **Do not change the method or data format**, as Lyre relies on these to function:
@@ -135,6 +136,7 @@ Lyre provides a fully interactive terminal experience:
 
 | Key | Action |
 |-----|--------|
+| `v` | Toggle lyrics mode |
 | `Space` | Play / Pause |
 | `h` / `Left` | Previous track |
 | `l` / `Right` | Next track |

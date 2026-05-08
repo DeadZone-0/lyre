@@ -16,30 +16,34 @@ export const useLyrics = (title: string, artist: string, duration: number) => {
 			return;
 		}
 
+		let cancelled = false;
+
 		const fetchLyrics = async () => {
 			setIsLoading(true);
 			try {
-				// Use LRCLIB API to get synced lyrics
-				// Duration is in microseconds, API wants seconds
 				const durationSec = Math.floor(duration / 1000000);
 				const url = `https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(title)}&duration=${durationSec}`;
-				
+
 				const response: any = await got(url).json();
-				
+
+				if (cancelled) return;
+
 				if (response.syncedLyrics) {
 					const lines = parseLRC(response.syncedLyrics);
 					setLyrics(lines);
 				} else {
 					setLyrics([]);
 				}
-			} catch (error) {
-				setLyrics([]);
+			} catch {
+				if (!cancelled) setLyrics([]);
 			} finally {
-				setIsLoading(false);
+				if (!cancelled) setIsLoading(false);
 			}
 		};
 
 		fetchLyrics();
+
+		return () => { cancelled = true; };
 	}, [title, artist, duration]);
 
 	return { lyrics, isLoading };
