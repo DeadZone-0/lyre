@@ -45,7 +45,7 @@ const THEMES = {
 	default: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['blue', 'cyan', 'magenta', 'red'], gradientDirection: 'horizontal', peakColor: '' },
 	cyberpunk: { style: 'stacked', char: '■', emptyChar: ' ', gradient: ['#00ffff', '#ff00ff', '#ffff00'], gradientDirection: 'vertical', peakColor: '#ffffff' },
 	retro: { style: 'stacked', char: '━', emptyChar: ' ', gradient: ['#00ff00', '#aaff00', '#ffff00', '#ff8800', '#ff0000'], gradientDirection: 'vertical', peakColor: '#ff0000' },
-	ocean: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['#000044', '#0044ff', '#00ffff'], gradientDirection: 'vertical', peakColor: '#ffffff' },
+	ocean: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['blue', 'blueBright', 'cyan'], gradientDirection: 'vertical', peakColor: 'white' },
 	matrix: { style: 'stacked', char: '█', emptyChar: ' ', gradient: ['#003300', '#00ff00', '#ccffcc'], gradientDirection: 'vertical', peakColor: '#ffffff' },
 	fire: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['#330000', '#ff0000', '#ff8800', '#ffff00', '#ffffff'], gradientDirection: 'vertical', peakColor: '' },
 	synthwave: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['#091833', '#133e7c', '#711c91', '#ea00d9', '#0abdc6'], gradientDirection: 'vertical', peakColor: '#ffffff' },
