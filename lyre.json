@@ -6,7 +6,8 @@
   },
   "visualizer": {
     "bars": 80,
-    "fps": 30
+    "fps": 30,
+    "style": "stacked"
   },
   "lyrics": {
     "enabled": true,

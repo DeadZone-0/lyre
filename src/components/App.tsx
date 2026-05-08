@@ -46,7 +46,7 @@ const LYRE_CONFIG_PATH = paths.config;
 // Load config
 let lyreConfig = {
 	albumArt: { enabled: true, mode: 'high-res' as 'high-res' | 'ascii', maxHeight: 18 },
-	visualizer: { bars: 80, fps: 30 },
+	visualizer: { bars: 80, fps: 30, style: 'fluid' as 'fluid' | 'stacked' },
 	lyrics: { enabled: true, activeColor: 'yellow', inactiveColor: 'gray' }
 };
 try {
@@ -59,6 +59,10 @@ try {
 				...lyreConfig.albumArt,
 				...saved.albumArt,
 				mode: (saved.albumArt?.mode === 'ascii') ? 'ascii' : 'high-res'
+			},
+			visualizer: {
+				...lyreConfig.visualizer,
+				...saved.visualizer
 			}
 		};
 	}
@@ -67,7 +71,8 @@ try {
 const BLOCKS = [' ', ' ', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
 const Visualizer = ({ bars, height = 4, type = 'horizontal' }: { bars: number[]; height?: number; type?: 'horizontal' | 'minimal' }) => {
-	const maxLevel = height * 8;
+	const { style = 'fluid' } = lyreConfig.visualizer || {};
+	const maxLevel = style === 'stacked' ? height : height * 8;
 	
 	const vizString = useMemo(() => {
 		let result = '';
@@ -80,21 +85,33 @@ const Visualizer = ({ bars, height = 4, type = 'horizontal' }: { bars: number[];
 				const pos = i / bars.length;
 				if (pos < 0.2) colorFunc = chalk.blue;
 				else if (pos > 0.8) colorFunc = chalk.magenta;
-				result += colorFunc(BLOCKS[Math.min(level, 8)]);
+				result += colorFunc(BLOCKS[Math.min(level, 8)] || ' ');
 			}
 		} else {
 			for (let r = height - 1; r >= 0; r--) {
 				for (let i = 0; i < bars.length; i++) {
 					const v = bars[i] || 0;
 					const level = Math.floor((v / 1000) * maxLevel);
-					const rowLevel = level - (r * 8);
-					const char = rowLevel <= 0 ? BLOCKS[0] : (rowLevel >= 8 ? BLOCKS[8] : BLOCKS[Math.min(rowLevel, 8)]);
+					let char = ' ';
+					let isPeak = false;
+
+					if (style === 'stacked') {
+						const rowLevel = level - r;
+						if (rowLevel > 0) char = '━';
+						if (rowLevel === 1) isPeak = true;
+					} else {
+						const rowLevel = level - (r * 8);
+						char = rowLevel <= 0 ? BLOCKS[0] : (rowLevel >= 8 ? BLOCKS[8] : BLOCKS[Math.min(rowLevel, 8)] || ' ');
+					}
 					
 					let colorFunc = chalk.cyan;
 					const pos = i / bars.length;
 					if (pos < 0.25) colorFunc = chalk.blue;
 					else if (pos > 0.75) colorFunc = chalk.magenta;
 					else if (pos > 0.5) colorFunc = chalk.red;
+
+					// Red peak for stacked mode
+					if (isPeak) colorFunc = chalk.red;
 					
 					result += colorFunc(char);
 				}
@@ -102,7 +119,7 @@ const Visualizer = ({ bars, height = 4, type = 'horizontal' }: { bars: number[];
 			}
 		}
 		return result;
-	}, [bars, height, maxLevel, type]);
+	}, [bars, height, maxLevel, type, style]);
 
 	return <Text wrap="truncate">{vizString}</Text>;
 };
