@@ -12,12 +12,17 @@ export const useAlbumArt = (url: string, width: number, height: number, mode: 'h
 			return;
 		}
 
+		let cancelled = false;
+
 		const fetchArt = async () => {
 			try {
 				const response = await got(url, { responseType: 'buffer' });
+				if (cancelled) return;
+
 				// @ts-ignore
 				const image = await Jimp.read(Buffer.from(response.body));
-				
+				if (cancelled) return;
+
 				// Sharpen
 				image.convolute([[0, -1, 0], [-1, 5, -1], [0, -1, 0]]);
 
@@ -45,7 +50,7 @@ export const useAlbumArt = (url: string, width: number, height: number, mode: 'h
 						}
 						if (y < image.bitmap.height - 2) result += '\n';
 					}
-					setArtString(result);
+					if (!cancelled) setArtString(result);
 				} else {
 					image.resize({ w: width, h: height });
 					image.greyscale();
@@ -60,14 +65,16 @@ export const useAlbumArt = (url: string, width: number, height: number, mode: 'h
 						}
 						if (y < image.bitmap.height - 1) asciiResult += '\n';
 					}
-					setArtString(asciiResult);
+					if (!cancelled) setArtString(asciiResult);
 				}
-			} catch (error) {
-				setArtString('');
+			} catch {
+				if (!cancelled) setArtString('');
 			}
 		};
 
 		fetchArt();
+
+		return () => { cancelled = true; };
 	}, [url, width, height, mode]);
 
 	return artString;

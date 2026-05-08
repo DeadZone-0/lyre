@@ -40,12 +40,6 @@ export const useCava = (configPath: string, barsCount: number) => {
 					lastUpdateRef.current = now;
 				}
 			}
-			
-			// Clear performance buffer if it exists to prevent memory warnings
-			if (typeof performance !== 'undefined' && performance.clearMeasures) {
-				performance.clearMeasures();
-				performance.clearMarks();
-			}
 		});
 
 		return () => {

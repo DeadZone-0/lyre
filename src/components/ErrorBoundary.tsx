@@ -24,7 +24,7 @@ export class ErrorBoundary extends Component<Props, State> {
 		if (this.state.hasError) {
 			return (
 				<Box flexDirection="column" paddingX={1} paddingY={0}>
-					<Text bold color="red">Lyre encountered an error</Text>
+					<Text bold color="red">LYRE encountered an error</Text>
 					<Text dimColor color="gray">{this.state.error?.message}</Text>
 					<Text dimColor color="gray">Press Ctrl+C to exit</Text>
 				</Box>
