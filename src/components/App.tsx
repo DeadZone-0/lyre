@@ -13,35 +13,8 @@ import chalk from 'chalk';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Resolve config paths
-const getPaths = () => {
-	const localConfig = path.resolve(__dirname, '../../lyre.json');
-	const localCava = path.resolve(__dirname, '../../cava.conf');
-	
-	const globalDir = path.join(os.homedir(), '.config', 'lyre');
-	const globalConfig = path.join(globalDir, 'lyre.json');
-	const globalCava = path.join(globalDir, 'cava.conf');
-
-	if (fs.existsSync(localConfig) && fs.existsSync(localCava)) {
-		return { config: localConfig, cava: localCava };
-	}
-	
-	if (!fs.existsSync(globalDir)) {
-		fs.mkdirSync(globalDir, { recursive: true });
-	}
-	
-	if (!fs.existsSync(globalCava)) {
-		fs.writeFileSync(globalCava, `[general]\nframerate = 30\nbars = 100\nautosens = 1\n\n[output]\nmethod = raw\nraw_target = /dev/stdout\ndata_format = ascii\nascii_max_range = 1000\n\n[smoothing]\nmonstercat = 1\nintegral = 85\ngravity = 100\n`);
-	}
-
-	return { config: globalConfig, cava: globalCava };
-};
-
-const paths = getPaths();
-const CONFIG_PATH = paths.cava;
-const LYRE_CONFIG_PATH = paths.config;
-
-const THEMES = {
+// Default Themes
+const DEFAULT_THEMES = {
 	default: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['blue', 'cyan', 'magenta', 'red'], gradientDirection: 'horizontal', peakColor: '' },
 	cyberpunk: { style: 'stacked', char: '■', emptyChar: ' ', gradient: ['#00ffff', '#ff00ff', '#ffff00'], gradientDirection: 'vertical', peakColor: '#ffffff' },
 	retro: { style: 'stacked', char: '━', emptyChar: ' ', gradient: ['#00ff00', '#aaff00', '#ffff00', '#ff8800', '#ff0000'], gradientDirection: 'vertical', peakColor: '#ff0000' },
@@ -52,9 +25,54 @@ const THEMES = {
 	glacier: { style: 'stacked', char: '■', emptyChar: ' ', gradient: ['#002244', '#0066aa', '#00aaff', '#aaffff'], gradientDirection: 'vertical', peakColor: '#ffffff' }
 };
 
+// Resolve config paths
+const getPaths = () => {
+	const localConfig = path.resolve(__dirname, '../../lyre.json');
+	const localThemes = path.resolve(__dirname, '../../themes.json');
+	const localCava = path.resolve(__dirname, '../../cava.conf');
+	
+	const globalDir = path.join(os.homedir(), '.config', 'lyre');
+	const globalConfig = path.join(globalDir, 'lyre.json');
+	const globalThemes = path.join(globalDir, 'themes.json');
+	const globalCava = path.join(globalDir, 'cava.conf');
+
+	if (fs.existsSync(localConfig) && fs.existsSync(localCava)) {
+		if (!fs.existsSync(localThemes)) {
+			fs.writeFileSync(localThemes, JSON.stringify(DEFAULT_THEMES, null, 2));
+		}
+		return { config: localConfig, themes: localThemes, cava: localCava };
+	}
+	
+	if (!fs.existsSync(globalDir)) {
+		fs.mkdirSync(globalDir, { recursive: true });
+	}
+	
+	if (!fs.existsSync(globalCava)) {
+		fs.writeFileSync(globalCava, `[general]\nframerate = 30\nbars = 100\nautosens = 1\n\n[output]\nmethod = raw\nraw_target = /dev/stdout\ndata_format = ascii\nascii_max_range = 1000\n\n[smoothing]\nmonstercat = 1\nintegral = 85\ngravity = 100\n`);
+	}
+
+	if (!fs.existsSync(globalThemes)) {
+		fs.writeFileSync(globalThemes, JSON.stringify(DEFAULT_THEMES, null, 2));
+	}
+
+	return { config: globalConfig, themes: globalThemes, cava: globalCava };
+};
+
+const paths = getPaths();
+const CONFIG_PATH = paths.cava;
+const LYRE_CONFIG_PATH = paths.config;
+const THEMES_PATH = paths.themes;
+
+let loadedThemes = DEFAULT_THEMES;
+try {
+	if (fs.existsSync(THEMES_PATH)) {
+		loadedThemes = { ...DEFAULT_THEMES, ...JSON.parse(fs.readFileSync(THEMES_PATH, 'utf-8')) };
+	}
+} catch (e) {}
+
 let initialConfig = {
 	albumArt: { enabled: true, mode: 'high-res' as 'high-res' | 'ascii', maxHeight: 18 },
-	visualizer: { bars: 80, fps: 30, theme: 'default' as keyof typeof THEMES },
+	visualizer: { bars: 80, fps: 30, theme: 'default' },
 	lyrics: { enabled: true, activeColor: 'yellow', inactiveColor: 'gray' }
 };
 
@@ -74,7 +92,7 @@ try {
 const BLOCKS = [' ', ' ', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
 const Visualizer = ({ bars, height = 4, type = 'horizontal', activeTheme = 'default' }: { bars: number[]; height?: number; type?: 'horizontal' | 'minimal'; activeTheme?: string }) => {
-	const theme = (THEMES as any)[activeTheme] || THEMES.default;
+	const theme = (loadedThemes as any)[activeTheme] || loadedThemes.default;
 	const maxLevel = theme.style === 'stacked' ? height : height * 8;
 	
 	const vizString = useMemo(() => {
@@ -206,7 +224,7 @@ const AlbumArt = ({ pixels, mode }: { pixels: string; mode: string }) => {
 };
 
 const ThemeSelectorMode = ({ activeTheme, onSelect, onCancel, height }: { activeTheme: string; onSelect: (t: string) => void; onCancel: () => void; height: number }) => {
-	const themes = Object.keys(THEMES);
+	const themes = Object.keys(loadedThemes);
 	const [selectedIndex, setSelectedIndex] = useState(Math.max(0, themes.indexOf(activeTheme)));
 
 	useInput((input, key) => {
