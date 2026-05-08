@@ -7,7 +7,7 @@
   "visualizer": {
     "bars": 80,
     "fps": 30,
-    "style": "stacked"
+    "theme": "retro"
   },
   "lyrics": {
     "enabled": true,

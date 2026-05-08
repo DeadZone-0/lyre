@@ -13,7 +13,7 @@ import chalk from 'chalk';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Resolve config paths (Support both local dev and global install)
+// Resolve config paths
 const getPaths = () => {
 	const localConfig = path.resolve(__dirname, '../../lyre.json');
 	const localCava = path.resolve(__dirname, '../../cava.conf');
@@ -22,12 +22,10 @@ const getPaths = () => {
 	const globalConfig = path.join(globalDir, 'lyre.json');
 	const globalCava = path.join(globalDir, 'cava.conf');
 
-	// If running in local dev directory, prioritize local files
 	if (fs.existsSync(localConfig) && fs.existsSync(localCava)) {
 		return { config: localConfig, cava: localCava };
 	}
 	
-	// Otherwise use/create global config
 	if (!fs.existsSync(globalDir)) {
 		fs.mkdirSync(globalDir, { recursive: true });
 	}
@@ -43,48 +41,53 @@ const paths = getPaths();
 const CONFIG_PATH = paths.cava;
 const LYRE_CONFIG_PATH = paths.config;
 
-// Load config
-let lyreConfig = {
+const THEMES = {
+	default: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['blue', 'cyan', 'magenta', 'red'], gradientDirection: 'horizontal', peakColor: '' },
+	cyberpunk: { style: 'stacked', char: '■', emptyChar: ' ', gradient: ['cyan', 'magenta', 'yellow'], gradientDirection: 'vertical', peakColor: 'red' },
+	retro: { style: 'stacked', char: '━', emptyChar: ' ', gradient: ['green', 'yellow', 'red'], gradientDirection: 'vertical', peakColor: 'red' },
+	ocean: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['blue', 'blueBright', 'cyan'], gradientDirection: 'vertical', peakColor: 'white' },
+	matrix: { style: 'stacked', char: '█', emptyChar: ' ', gradient: ['green', 'greenBright', 'white'], gradientDirection: 'vertical', peakColor: 'white' },
+	fire: { style: 'fluid', char: '█', emptyChar: ' ', gradient: ['red', 'yellow', 'white'], gradientDirection: 'vertical', peakColor: '' }
+};
+
+let initialConfig = {
 	albumArt: { enabled: true, mode: 'high-res' as 'high-res' | 'ascii', maxHeight: 18 },
-	visualizer: { bars: 80, fps: 30, style: 'fluid' as 'fluid' | 'stacked' },
+	visualizer: { bars: 80, fps: 30, theme: 'default' as keyof typeof THEMES },
 	lyrics: { enabled: true, activeColor: 'yellow', inactiveColor: 'gray' }
 };
+
 try {
 	if (fs.existsSync(LYRE_CONFIG_PATH)) {
 		const saved = JSON.parse(fs.readFileSync(LYRE_CONFIG_PATH, 'utf-8'));
-		lyreConfig = {
-			...lyreConfig,
+		initialConfig = {
+			...initialConfig,
 			...saved,
-			albumArt: {
-				...lyreConfig.albumArt,
-				...saved.albumArt,
-				mode: (saved.albumArt?.mode === 'ascii') ? 'ascii' : 'high-res'
-			},
-			visualizer: {
-				...lyreConfig.visualizer,
-				...saved.visualizer
-			}
+			albumArt: { ...initialConfig.albumArt, ...saved.albumArt, mode: (saved.albumArt?.mode === 'ascii') ? 'ascii' : 'high-res' },
+			visualizer: { ...initialConfig.visualizer, ...saved.visualizer },
+			lyrics: { ...initialConfig.lyrics, ...saved.lyrics }
 		};
 	}
 } catch (e) {}
 
 const BLOCKS = [' ', ' ', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
-const Visualizer = ({ bars, height = 4, type = 'horizontal' }: { bars: number[]; height?: number; type?: 'horizontal' | 'minimal' }) => {
-	const { style = 'fluid' } = lyreConfig.visualizer || {};
-	const maxLevel = style === 'stacked' ? height : height * 8;
+const Visualizer = ({ bars, height = 4, type = 'horizontal', activeTheme = 'default' }: { bars: number[]; height?: number; type?: 'horizontal' | 'minimal'; activeTheme?: string }) => {
+	const theme = (THEMES as any)[activeTheme] || THEMES.default;
+	const maxLevel = theme.style === 'stacked' ? height : height * 8;
 	
 	const vizString = useMemo(() => {
 		let result = '';
 		if (type === 'minimal') {
-			// Minimal visualizer: just one line, high density
 			for (let i = 0; i < bars.length; i++) {
 				const v = bars[i] || 0;
 				const level = Math.floor((v / 1000) * 8);
 				let colorFunc = chalk.cyan;
 				const pos = i / bars.length;
-				if (pos < 0.2) colorFunc = chalk.blue;
-				else if (pos > 0.8) colorFunc = chalk.magenta;
+				const gradIndex = Math.min(Math.floor(pos * theme.gradient.length), Math.max(0, theme.gradient.length - 1));
+				const colorStr = theme.gradient[gradIndex] || 'cyan';
+				if (colorStr.startsWith('#')) colorFunc = chalk.hex(colorStr);
+				else if ((chalk as any)[colorStr]) colorFunc = (chalk as any)[colorStr];
+				
 				result += colorFunc(BLOCKS[Math.min(level, 8)] || ' ');
 			}
 		} else {
@@ -92,51 +95,48 @@ const Visualizer = ({ bars, height = 4, type = 'horizontal' }: { bars: number[];
 				for (let i = 0; i < bars.length; i++) {
 					const v = bars[i] || 0;
 					const level = Math.floor((v / 1000) * maxLevel);
-					let char = ' ';
+					let char = theme.emptyChar;
 					let isPeak = false;
 
-					if (style === 'stacked') {
+					if (theme.style === 'stacked') {
 						const rowLevel = level - r;
-						if (rowLevel > 0) char = '━';
+						if (rowLevel > 0) char = theme.char;
 						if (rowLevel === 1) isPeak = true;
 					} else {
 						const rowLevel = level - (r * 8);
-						char = rowLevel <= 0 ? BLOCKS[0] : (rowLevel >= 8 ? BLOCKS[8] : BLOCKS[Math.min(rowLevel, 8)] || ' ');
+						const blockChar = rowLevel <= 0 ? theme.emptyChar : (rowLevel >= 8 ? theme.char : (BLOCKS[Math.min(rowLevel, 8)] || theme.char));
+						char = blockChar;
+						if (rowLevel > 0 && rowLevel <= 8) isPeak = true;
 					}
 					
-					let colorFunc = chalk.cyan;
-					const pos = i / bars.length;
-					if (pos < 0.25) colorFunc = chalk.blue;
-					else if (pos > 0.75) colorFunc = chalk.magenta;
-					else if (pos > 0.5) colorFunc = chalk.red;
+					let colorStr = theme.gradient[0] || 'cyan';
+					const pos = theme.gradientDirection === 'vertical' 
+						? 1 - (r / (height - 1 || 1)) 
+						: i / bars.length;
 
-					// Red peak for stacked mode
-					if (isPeak) colorFunc = chalk.red;
-					
+					const gradIndex = Math.min(Math.floor(pos * theme.gradient.length), Math.max(0, theme.gradient.length - 1));
+					colorStr = theme.gradient[gradIndex] || colorStr;
+
+					if (isPeak && theme.peakColor && char !== theme.emptyChar) {
+						colorStr = theme.peakColor;
+					}
+
+					let colorFunc = chalk.white;
+					if (colorStr && colorStr.startsWith('#')) colorFunc = chalk.hex(colorStr);
+					else if (colorStr && (chalk as any)[colorStr]) colorFunc = (chalk as any)[colorStr];
+
 					result += colorFunc(char);
 				}
 				if (r > 0) result += '\n';
 			}
 		}
 		return result;
-	}, [bars, height, maxLevel, type, style]);
+	}, [bars, height, maxLevel, type, theme]);
 
 	return <Text wrap="truncate">{vizString}</Text>;
 };
 
-const LyricsMode = ({ 
-	lyrics, 
-	position, 
-	height, 
-	width, 
-	title 
-}: { 
-	lyrics: any[], 
-	position: number, 
-	height: number, 
-	width: number, 
-	title: string 
-}) => {
+const LyricsMode = ({ lyrics, position, height, width, title, config }: { lyrics: any[], position: number, height: number, width: number, title: string, config: any }) => {
 	const currentMs = position / 1000;
 	const activeIndex = lyrics.findIndex((l, i) => {
 		const next = lyrics[i + 1];
@@ -158,7 +158,7 @@ const LyricsMode = ({
 					return (
 						<Box key={i} marginY={0}>
 							<Text 
-								color={isActive ? lyreConfig.lyrics.activeColor : lyreConfig.lyrics.inactiveColor}
+								color={isActive ? config.lyrics.activeColor : config.lyrics.inactiveColor}
 								bold={isActive}
 								wrap="truncate-end"
 							>
@@ -203,44 +203,72 @@ const AlbumArt = ({ pixels, mode }: { pixels: string; mode: string }) => {
 	return <Text wrap="truncate">{pixels}</Text>;
 };
 
+const ThemeSelectorMode = ({ activeTheme, onSelect, onCancel }: { activeTheme: string; onSelect: (t: string) => void; onCancel: () => void }) => {
+	const themes = Object.keys(THEMES);
+	const [selectedIndex, setSelectedIndex] = useState(Math.max(0, themes.indexOf(activeTheme)));
+
+	useInput((input, key) => {
+		if (input === 'q' || key.escape || input === 't') onCancel();
+		if (key.upArrow || input === 'k') setSelectedIndex(Math.max(0, selectedIndex - 1));
+		if (key.downArrow || input === 'j') setSelectedIndex(Math.min(themes.length - 1, selectedIndex + 1));
+		if (key.return || input === ' ') onSelect(themes[selectedIndex]!);
+	});
+
+	return (
+		<Box flexDirection="column" alignItems="center" justifyContent="center" height="100%" width="100%">
+			<Box marginBottom={1} paddingX={2} borderStyle="single" borderColor="magenta">
+				<Text bold color="yellow">Theme Selector</Text>
+			</Box>
+			<Box flexDirection="column" alignItems="flex-start" paddingX={2} paddingY={1}>
+				{themes.map((theme, index) => {
+					const isSelected = index === selectedIndex;
+					return (
+						<Text key={theme} color={isSelected ? 'cyan' : 'white'} bold={isSelected}>
+							{isSelected ? '▶ ' : '  '}{theme.charAt(0).toUpperCase() + theme.slice(1)}
+						</Text>
+					);
+				})}
+			</Box>
+			<Box marginTop={1}>
+				<Text color="gray" dimColor>(Enter: Select | T/Q: Cancel | Up/Down: Navigate)</Text>
+			</Box>
+		</Box>
+	);
+};
+
 export const App = () => {
 	const { stdout } = useStdout();
 	const { exit } = useApp();
-	const [dimensions, setDimensions] = useState({ 
-		columns: stdout?.columns || 80, 
-		rows: stdout?.rows || 24 
-	});
+	const [dimensions, setDimensions] = useState({ columns: stdout?.columns || 80, rows: stdout?.rows || 24 });
 	const [isLyricsMode, setIsLyricsMode] = useState(false);
+	const [isThemeMode, setIsThemeMode] = useState(false);
+	const [config, setConfig] = useState(initialConfig);
 
 	useEffect(() => {
-		const onResize = () => {
-			setDimensions({
-				columns: stdout?.columns || 80,
-				rows: stdout?.rows || 24
-			});
-		};
+		const onResize = () => setDimensions({ columns: stdout?.columns || 80, rows: stdout?.rows || 24 });
 		stdout?.on('resize', onResize);
-		return () => {
-			stdout?.off('resize', onResize);
-		};
+		return () => { stdout?.off('resize', onResize); };
 	}, [stdout]);
 
 	const metadata = useMetadata();
 	const { lyrics } = useLyrics(metadata.title, metadata.artist, metadata.duration);
 	
-	const { enabled, mode, maxHeight } = lyreConfig.albumArt;
+	const { enabled, mode, maxHeight } = config.albumArt;
 	const artSize = enabled ? Math.max(6, Math.min(maxHeight, Math.floor(dimensions.rows / 2) - 4)) : 0;
 	const artString = useAlbumArt(metadata.artUrl, artSize * 2, artSize, mode);
 
 	const padding = 6;
-	const artWidth = enabled && !isLyricsMode ? artSize * 2 + 4 : 0; 
+	const artWidth = enabled && !isLyricsMode && !isThemeMode ? artSize * 2 + 4 : 0; 
 	const availableWidth = Math.max(30, dimensions.columns - padding - artWidth);
 	
 	const bars = useCava(CONFIG_PATH, availableWidth);
 	const vizHeight = Math.max(2, Math.min(8, Math.floor(dimensions.rows / 4)));
 
 	useInput((input, key) => {
+		if (isThemeMode) return; // Let ThemeSelector handle inputs
+		
 		if (input === 'q') exit();
+		if (input === 't') setIsThemeMode(true);
 		if (input === ' ') execa('playerctl', ['play-pause']).catch(() => {});
 		if (key.rightArrow || input === 'l') execa('playerctl', ['next']).catch(() => {});
 		if (key.leftArrow || input === 'h') execa('playerctl', ['previous']).catch(() => {});
@@ -249,24 +277,32 @@ export const App = () => {
 		if (input === 'v') setIsLyricsMode(!isLyricsMode);
 	});
 
+	const handleThemeSelect = (themeName: string) => {
+		const newConfig = { ...config, visualizer: { ...config.visualizer, theme: themeName as any } };
+		setConfig(newConfig);
+		try {
+			fs.writeFileSync(LYRE_CONFIG_PATH, JSON.stringify(newConfig, null, 2));
+		} catch (e) {}
+		setIsThemeMode(false);
+	};
+
 	return (
-		<Box 
-			flexDirection="column" 
-			paddingX={1} 
-			paddingY={0}
-			borderStyle="round" 
-			borderColor="magenta" 
-			width={dimensions.columns}
-			height={dimensions.rows}
-		>
+		<Box flexDirection="column" paddingX={1} paddingY={0} borderStyle="round" borderColor="magenta" width={dimensions.columns} height={dimensions.rows}>
 			<Box flexDirection="row" flexGrow={1} overflow="hidden">
-				{isLyricsMode ? (
+				{isThemeMode ? (
+					<ThemeSelectorMode 
+						activeTheme={config.visualizer.theme} 
+						onSelect={handleThemeSelect} 
+						onCancel={() => setIsThemeMode(false)} 
+					/>
+				) : isLyricsMode ? (
 					<LyricsMode 
 						lyrics={lyrics} 
 						position={metadata.position} 
 						height={dimensions.rows - 6} 
 						width={dimensions.columns - 4}
 						title={metadata.title}
+						config={config}
 					/>
 				) : (
 					<>
@@ -290,9 +326,7 @@ export const App = () => {
 						<Box flexDirection="column" flexGrow={1} justifyContent="center" overflow="hidden">
 							<Box flexDirection="row" justifyContent="space-between" marginBottom={1}>
 								<Box flexDirection="column" flexGrow={1}>
-									<Text bold color="yellow" wrap="truncate-end">
-										{metadata.title}
-									</Text>
+									<Text bold color="yellow" wrap="truncate-end">{metadata.title}</Text>
 									<Text color="white" dimColor wrap="truncate-end">{metadata.artist}</Text>
 									<Text italic color="gray" dimColor wrap="truncate-end">{metadata.album}</Text>
 								</Box>
@@ -302,7 +336,7 @@ export const App = () => {
 							</Box>
 
 							<Box flexDirection="column" alignItems="center" marginBottom={1} width="100%" overflow="hidden">
-								<Visualizer bars={bars} height={vizHeight} />
+								<Visualizer bars={bars} height={vizHeight} activeTheme={config.visualizer.theme} />
 							</Box>
 						</Box>
 					</>
@@ -310,18 +344,14 @@ export const App = () => {
 			</Box>
 
 			<Box flexDirection="column" width="100%">
-				{isLyricsMode && (
+				{isLyricsMode && !isThemeMode && (
 					<Box marginBottom={0} justifyContent="center" width="100%">
-						<Visualizer bars={bars} type="minimal" />
+						<Visualizer bars={bars} type="minimal" activeTheme={config.visualizer.theme} />
 					</Box>
 				)}
 				
 				<Box justifyContent="center" width="100%" marginBottom={1}>
-					<ProgressBar 
-						current={metadata.position} 
-						total={metadata.duration} 
-						width={dimensions.columns - 6} 
-					/>
+					<ProgressBar current={metadata.position} total={metadata.duration} width={dimensions.columns - 6} />
 				</Box>
 
 				<Box flexDirection="row" justifyContent="space-between" width="100%">
@@ -329,10 +359,10 @@ export const App = () => {
 						<Text color={metadata.status === 'Playing' ? 'green' : 'yellow'} wrap="truncate">
 							{metadata.status === 'Playing' ? '●' : '○'} {metadata.status}
 						</Text>
-						<Text color="gray" dimColor> (V: Toggle Lyrics)</Text>
+						<Text color="gray" dimColor> (V: Lyrics | T: Themes)</Text>
 					</Box>
 					<Box flexShrink={0}>
-						<Text color="gray" dimColor> v1.1.2</Text>
+						<Text color="gray" dimColor> v1.2.0</Text>
 					</Box>
 				</Box>
 			</Box>
