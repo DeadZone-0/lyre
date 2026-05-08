@@ -172,5 +172,15 @@ The current track may not exist in the LRCLIB database, or the metadata provided
 ### Menu Clipping
 If the Theme menu is cut off, simply resize your terminal vertically; the menu will automatically paginate.
 
+## Star Chart
+
+<a href="https://www.star-history.com/?repos=DeadZone-0%2Flyre&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=DeadZone-0/lyre&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=DeadZone-0/lyre&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=DeadZone-0/lyre&type=date&legend=top-left" />
+ </picture>
+</a>
+
 ## License
 ISC
