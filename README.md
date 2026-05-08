@@ -3,12 +3,14 @@
 A beautiful music visualizer and metadata TUI built with Node.js and Ink.
 
 ## Features
-- **Real-time Visualization**: Audio visualizer using `cava`.
-- **Album Art**: high-res (half-block) or ASCII modes.
+- **Real-time Visualization**: Audio visualizer using `cava` with customizable fluid or stacked bars.
+- **Synced Lyrics**: Fetches and displays time-synced lyrics that automatically scroll with the current track.
+- **Album Art**: High-resolution (half-block) or ASCII art modes.
+- **Modular Themes**: Switch between built-in visualizer themes or create your own custom gradients and styles.
 - **Metadata**: Track info, progress bar, and player status via `playerctl`.
-- **Interactive Controls**: Play, pause, skip, and volume control from your keyboard.
+- **Interactive Controls**: Play, pause, skip, volume control, and view toggles directly from your keyboard.
 - **Responsive**: Adapts to any terminal size and window resizing.
-- **Optimized**: High-performance string rendering for lag-free experience.
+- **Optimized**: High-performance string rendering for a lag-free experience.
 
 ## Prerequisites
 - **Node.js** (v18+)
@@ -33,19 +35,20 @@ lyre
 
 ## Configuration
 
-Lyre stores all configuration files in `~/.config/lyre/`. On first run, a default `cava.conf` is automatically generated if one does not exist.
+Lyre stores all configuration files in `~/.config/lyre/`. On first run, default configuration files are automatically generated if they do not exist.
 
 ### Directory Structure
 
 ```
 ~/.config/lyre/
-├── lyre.json      # UI settings (album art, visualizer)
+├── lyre.json      # UI settings (album art, visualizer, lyrics)
+├── themes.json    # Custom visualizer themes
 └── cava.conf      # Audio visualizer parameters
 ```
 
 ### `lyre.json` — UI Configuration
 
-Customize the appearance and behavior by creating or editing `~/.config/lyre/lyre.json`:
+Customize the appearance and behavior by editing `~/.config/lyre/lyre.json`:
 
 ```json
 {
@@ -56,7 +59,13 @@ Customize the appearance and behavior by creating or editing `~/.config/lyre/lyr
   },
   "visualizer": {
     "bars": 80,
-    "fps": 30
+    "fps": 30,
+    "theme": "default"
+  },
+  "lyrics": {
+    "enabled": true,
+    "activeColor": "yellow",
+    "inactiveColor": "gray"
   }
 }
 ```
@@ -65,77 +74,64 @@ Customize the appearance and behavior by creating or editing `~/.config/lyre/lyr
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `albumArt.enabled` | `boolean` | `true` | Show or hide the album art panel. Set to `false` to give more space to the visualizer and metadata. |
-| `albumArt.mode` | `"high-res"` or `"ascii"` | `"high-res"` | Rendering mode for album art. `high-res` uses half-block Unicode characters with true-color RGB for photorealistic output. `ascii` uses standard ASCII characters for maximum compatibility with older terminals. |
-| `albumArt.maxHeight` | `number` | `18` | Maximum height of the album art panel in terminal rows. The actual height is dynamically calculated based on terminal size but will never exceed this value. Minimum effective height is 6 rows. |
+| `albumArt.enabled` | `boolean` | `true` | Show or hide the album art panel. Can be toggled in-app via the `a` key. |
+| `albumArt.mode` | `"high-res"` or `"ascii"` | `"high-res"` | Rendering mode for album art. `high-res` uses half-block Unicode characters with true-color RGB. `ascii` uses standard ASCII characters for maximum compatibility. |
+| `albumArt.maxHeight` | `number` | `18` | Maximum height of the album art panel in terminal rows. |
 
 #### Visualizer Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `visualizer.bars` | `number` | `80` | Number of bars displayed in the audio visualizer. Higher values give finer granularity but require a wider terminal. The actual number of bars is capped by available terminal width. |
-| `visualizer.fps` | `number` | `30` | Target frames per second for visualizer updates. Must match the `framerate` value in `cava.conf` for smooth output. Values above 60 are not recommended due to diminishing returns and increased CPU usage. |
+| `visualizer.bars` | `number` | `80` | Number of bars sampled from the audio visualizer. The actual number displayed is capped by available terminal width. |
+| `visualizer.fps` | `number` | `30` | Target frames per second for visualizer updates. Must match `framerate` in `cava.conf`. |
+| `visualizer.theme` | `string` | `"default"` | The active visualizer theme loaded from `themes.json` (e.g., `retro`, `ocean`, `cyberpunk`). |
 
-### `cava.conf` — Audio Visualizer Configuration
+#### Lyrics Options
 
-Lyre uses [cava](https://github.com/karlstav/cava) under the hood for audio analysis. The configuration file at `~/.config/lyre/cava.conf` controls how cava captures and processes audio.
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `lyrics.activeColor` | `string` | `"yellow"` | The color used to highlight the currently playing line of lyrics. |
+| `lyrics.inactiveColor` | `string` | `"gray"` | The color used for surrounding, upcoming, or past lyric lines. |
 
-A default config is generated automatically. You can customize it with any valid cava options. Key sections:
+### `themes.json` — Theme Engine
+
+Lyre features a fully modular theme engine. You can edit `~/.config/lyre/themes.json` to customize existing themes or add new ones.
+
+A theme object defines how the visualizer is drawn:
+- `style`: `"fluid"` (smooth wave transitions) or `"stacked"` (discrete blocks).
+- `char`: The character used to draw the bars (e.g., `█`, `━`, `■`).
+- `emptyChar`: The character used for empty space (usually a space ` `).
+- `gradient`: An array of color names or hex codes (e.g., `["#00ff00", "yellow", "red"]`).
+- `gradientDirection`: `"horizontal"` (left to right) or `"vertical"` (bottom to top).
+- `peakColor`: (Optional) Forces the highest active block in a `stacked` bar to a specific color.
+
+### `cava.conf` — Audio Configuration
+
+Lyre uses [cava](https://github.com/karlstav/cava) under the hood. The file at `~/.config/lyre/cava.conf` controls audio capture and processing.
 
 #### `[general]`
 | Option | Default | Description |
 |--------|---------|-------------|
 | `framerate` | `30` | Output refresh rate in Hz. Should match `visualizer.fps` in `lyre.json`. |
-| `bars` | `100` | Number of frequency bars cava produces. Lyre samples from these to fit the configured display width. |
-| `autosens` | `1` | Automatically adjusts sensitivity to prevent clipping. Set to `0` for manual control via `sensitivity`. |
+| `bars` | `100` | Number of frequency bars cava produces. |
 
 #### `[output]`
-These options are critical for Lyre to function — do not change the method or data format:
-
-| Option | Required Value | Description |
-|--------|----------------|-------------|
-| `method` | `raw` | Output method. Must be `raw` for Lyre to parse the data. |
-| `raw_target` | `/dev/stdout` | Output destination. Must be stdout. |
-| `data_format` | `ascii` | Data encoding. Must be `ascii` (semicolon-separated integers). |
-| `ascii_max_range` | `1000` | Maximum value in the output. Used by Lyre to normalize bar heights. |
-
-#### `[smoothing]`
-Controls how the visualizer transitions between frames:
-
-| Option | Default | Description |
-|--------|---------|-------------|
-| `monstercat` | `1` | Enables Monstercat-style smoothing for a more dynamic look. Set to `0` to disable. |
-| `integral` | `85` | Smoothing factor (0-100). Higher values produce smoother, slower transitions. |
-| `gravity` | `100` | How quickly bars fall back down (0-100). Higher values make bars drop faster. |
+**Do not change the method or data format**, as Lyre relies on these to function:
+- `method = raw`
+- `raw_target = /dev/stdout`
+- `data_format = ascii`
 
 #### Audio Input Source
-
-By default, cava uses PulseAudio/PipeWire. To change the input source, add an `[input]` section:
-
+To change the input source (e.g., for ALSA or MPD), add an `[input]` section:
 ```ini
 [input]
 method = pulse
 source = auto
 ```
 
-For ALSA users:
-```ini
-[input]
-method = alsa
-source = hw:Loopback,1
-```
-
-For MPD users:
-```ini
-[input]
-method = mpd
-host = localhost
-port = 6600
-```
-
-See the [cava documentation](https://github.com/karlstav/cava/blob/master/example_files/config) for all available options.
-
 ## Keybindings
+
+Lyre provides a fully interactive terminal experience:
 
 | Key | Action |
 |-----|--------|
@@ -144,6 +140,9 @@ See the [cava documentation](https://github.com/karlstav/cava/blob/master/exampl
 | `l` / `Right` | Next track |
 | `k` / `Up` | Volume up (+5%) |
 | `j` / `Down` | Volume down (-5%) |
+| `v` | Toggle Synced Lyrics Mode |
+| `t` | Open Theme Selector Menu |
+| `a` | Toggle Album Art Visibility |
 | `q` | Quit |
 | `Ctrl+C` | Force quit (with cleanup) |
 
@@ -154,8 +153,6 @@ Any MPRIS-compatible media player works with Lyre via `playerctl`, including:
 - VLC
 - Firefox / Chrome (with media keys support)
 - MPD (with `mpd-mpris`)
-- Audacious
-- Lollypop
 
 ## Troubleshooting
 
@@ -163,24 +160,17 @@ Any MPRIS-compatible media player works with Lyre via `playerctl`, including:
 Ensure `cava` is installed and can detect your audio output. Run `cava` standalone to verify.
 
 ### "playerctl: command not found"
-Install `playerctl` from your package manager (`sudo apt install playerctl`, `sudo pacman -S playerctl`, etc.).
+Install `playerctl` from your package manager (`sudo pacman -S playerctl`, `sudo apt install playerctl`, etc.).
 
 ### Album art not rendering
-- Ensure your terminal supports true color (24-bit). Test with `echo -e "\e[38;2;255;0;0mRed\e[0m"`.
+- Ensure your terminal supports true color (24-bit).
 - If colors appear wrong, try setting `albumArt.mode` to `"ascii"` in your config.
 
-### Orphaned cava processes
-Lyre cleans up the cava subprocess on exit (via `q` or `Ctrl+C`). If you see lingering processes, kill them with `pkill cava`.
+### Lyrics displaying "Searching..."
+The current track may not exist in the LRCLIB database, or the metadata provided by your player is missing the artist/title.
 
-## Star History
-
-<a href="https://www.star-history.com/?repos=DeadZone-0%2Flyre&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=DeadZone-0/lyre&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=DeadZone-0/lyre&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=DeadZone-0/lyre&type=date&legend=top-left" />
- </picture>
-</a>
+### Menu Clipping
+If the Theme menu is cut off, simply resize your terminal vertically; the menu will automatically paginate.
 
 ## License
 ISC
