@@ -4,6 +4,7 @@ import { useCava } from '../hooks/useCava.js';
 import { useMetadata } from '../hooks/useMetadata.js';
 import { useAlbumArt } from '../hooks/useAlbumArt.js';
 import { useLyrics } from '../hooks/useLyrics.js';
+import { useLocalPlayer } from '../hooks/useLocalPlayer.js';
 import { execa } from 'execa';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -73,7 +74,8 @@ try {
 let initialConfig = {
 	albumArt: { enabled: true, mode: 'high-res' as 'high-res' | 'ascii', maxHeight: 18 },
 	visualizer: { bars: 80, fps: 30, theme: 'default' },
-	lyrics: { enabled: true, activeColor: 'yellow', inactiveColor: 'gray' }
+	lyrics: { enabled: true, activeColor: 'yellow', inactiveColor: 'gray' },
+	player: '' // empty string means auto
 };
 
 try {
@@ -84,7 +86,8 @@ try {
 			...saved,
 			albumArt: { ...initialConfig.albumArt, ...saved.albumArt, mode: (saved.albumArt?.mode === 'ascii') ? 'ascii' : 'high-res' },
 			visualizer: { ...initialConfig.visualizer, ...saved.visualizer },
-			lyrics: { ...initialConfig.lyrics, ...saved.lyrics }
+			lyrics: { ...initialConfig.lyrics, ...saved.lyrics },
+			player: saved.player || ''
 		};
 	}
 } catch (e) {}
@@ -269,12 +272,155 @@ const ThemeSelectorMode = ({ activeTheme, onSelect, onCancel, height }: { active
 	);
 };
 
+const FileBrowserMode = ({ onSelect, onCancel, height }: { onSelect: (files: string[], index: number) => void; onCancel: () => void; height: number }) => {
+	const [currentDir, setCurrentDir] = useState(os.homedir());
+	const [files, setFiles] = useState<{ name: string; isDir: boolean }[]>([]);
+	const [selectedIndex, setSelectedIndex] = useState(0);
+
+	useEffect(() => {
+		try {
+			const items = fs.readdirSync(currentDir, { withFileTypes: true });
+			const sorted = items
+				.filter(item => !item.name.startsWith('.')) // hide hidden
+				.filter(item => item.isDirectory() || item.name.match(/\.(mp3|flac|wav|m4a|ogg)$/i))
+				.map(item => ({ name: item.name, isDir: item.isDirectory() }))
+				.sort((a, b) => {
+					if (a.isDir && !b.isDir) return -1;
+					if (!a.isDir && b.isDir) return 1;
+					return a.name.localeCompare(b.name);
+				});
+			if (currentDir !== '/') sorted.unshift({ name: '..', isDir: true });
+			setFiles(sorted);
+			setSelectedIndex(0);
+		} catch (e) {
+			setFiles([{ name: '..', isDir: true }]);
+		}
+	}, [currentDir]);
+
+	useInput((input, key) => {
+		if (input === 'q' || key.escape || input === 'b') onCancel();
+		if (key.upArrow || input === 'k') setSelectedIndex(Math.max(0, selectedIndex - 1));
+		if (key.downArrow || input === 'j') setSelectedIndex(Math.min(files.length - 1, selectedIndex + 1));
+		if (key.return || input === ' ') {
+			const selected = files[selectedIndex];
+			if (!selected) return;
+			const fullPath = path.join(currentDir, selected.name);
+			if (selected.isDir) {
+				setCurrentDir(path.resolve(fullPath));
+			} else {
+				const audioFiles = files.filter(f => !f.isDir).map(f => path.join(currentDir, f.name));
+				const idx = audioFiles.indexOf(fullPath);
+				onSelect(audioFiles, idx === -1 ? 0 : idx);
+			}
+		}
+	});
+
+	const maxVisible = Math.max(3, height - 4);
+	let startIndex = Math.max(0, selectedIndex - Math.floor(maxVisible / 2));
+	let endIndex = startIndex + maxVisible;
+	if (endIndex > files.length) {
+		endIndex = files.length;
+		startIndex = Math.max(0, endIndex - maxVisible);
+	}
+	const visibleFiles = files.slice(startIndex, endIndex);
+
+	return (
+		<Box flexDirection="column" alignItems="flex-start" justifyContent="center" height="100%" width="100%" paddingX={2}>
+			<Box marginBottom={1} borderStyle="single" borderColor="cyan" width="100%">
+				<Text bold color="yellow">   {currentDir}</Text>
+			</Box>
+			<Box flexDirection="column" alignItems="flex-start" paddingX={1} width="100%">
+				{startIndex > 0 && <Text color="gray">  ▲</Text>}
+				{visibleFiles.map((file) => {
+					const index = files.indexOf(file);
+					const isSelected = index === selectedIndex;
+					const icon = file.isDir ? ' ' : '󰝚 ';
+					return (
+						<Text key={index} color={isSelected ? 'cyan' : (file.isDir ? 'blue' : 'white')} bold={isSelected} wrap="truncate-end">
+							{isSelected ? '▶ ' : '  '}{icon} {file.name}
+						</Text>
+					);
+				})}
+				{endIndex < files.length && <Text color="gray">  ▼</Text>}
+			</Box>
+			<Box marginTop={1}>
+				<Text color="gray" dimColor>(Enter: Select | B/Q: Cancel | Up/Down: Navigate)</Text>
+			</Box>
+		</Box>
+	);
+};
+
+const PlayerSelectorMode = ({ activePlayer, onSelect, onCancel, height }: { activePlayer: string; onSelect: (p: string) => void; onCancel: () => void; height: number }) => {
+	const [players, setPlayers] = useState<string[]>(['Auto']);
+	const [selectedIndex, setSelectedIndex] = useState(0);
+
+	useEffect(() => {
+		const fetchPlayers = async () => {
+			try {
+				const { stdout } = await execa('playerctl', ['-l']);
+				const list = stdout.split('\n').filter(Boolean);
+				setPlayers(['Auto', ...list]);
+			} catch (e) {
+				setPlayers(['Auto']);
+			}
+		};
+		fetchPlayers();
+	}, []);
+
+	useEffect(() => {
+		const idx = players.indexOf(activePlayer || 'Auto');
+		if (idx !== -1) setSelectedIndex(idx);
+	}, [players, activePlayer]);
+
+	useInput((input, key) => {
+		if (input === 'q' || key.escape || input === 'm') onCancel();
+		if (key.upArrow || input === 'k') setSelectedIndex(Math.max(0, selectedIndex - 1));
+		if (key.downArrow || input === 'j') setSelectedIndex(Math.min(players.length - 1, selectedIndex + 1));
+		if (key.return || input === ' ') onSelect(players[selectedIndex] === 'Auto' ? '' : players[selectedIndex]!);
+	});
+
+	const maxVisible = Math.max(3, height - 4);
+	let startIndex = Math.max(0, selectedIndex - Math.floor(maxVisible / 2));
+	let endIndex = startIndex + maxVisible;
+	if (endIndex > players.length) {
+		endIndex = players.length;
+		startIndex = Math.max(0, endIndex - maxVisible);
+	}
+	const visiblePlayers = players.slice(startIndex, endIndex);
+
+	return (
+		<Box flexDirection="column" alignItems="center" justifyContent="center" height="100%" width="100%">
+			<Box marginBottom={1} paddingX={2} borderStyle="single" borderColor="magenta">
+				<Text bold color="yellow">Media Player Selector</Text>
+			</Box>
+			<Box flexDirection="column" alignItems="flex-start" paddingX={2} paddingY={1}>
+				{startIndex > 0 && <Text color="gray">  ▲</Text>}
+				{visiblePlayers.map((player) => {
+					const index = players.indexOf(player);
+					const isSelected = index === selectedIndex;
+					return (
+						<Text key={player} color={isSelected ? 'cyan' : 'white'} bold={isSelected}>
+							{isSelected ? '▶ ' : '  '}{player}
+						</Text>
+					);
+				})}
+				{endIndex < players.length && <Text color="gray">  ▼</Text>}
+			</Box>
+			<Box marginTop={1}>
+				<Text color="gray" dimColor>(Enter: Select | M/Q: Cancel | Up/Down: Navigate)</Text>
+			</Box>
+		</Box>
+	);
+};
+
 export const App = () => {
 	const { stdout } = useStdout();
 	const { exit } = useApp();
 	const [dimensions, setDimensions] = useState({ columns: stdout?.columns || 80, rows: stdout?.rows || 24 });
 	const [isLyricsMode, setIsLyricsMode] = useState(false);
 	const [isThemeMode, setIsThemeMode] = useState(false);
+	const [isFileBrowserMode, setIsFileBrowserMode] = useState(false);
+	const [isPlayerSelectorMode, setIsPlayerSelectorMode] = useState(false);
 	const [config, setConfig] = useState(initialConfig);
 	const [isArtVisible, setIsArtVisible] = useState(config.albumArt.enabled);
 
@@ -284,7 +430,12 @@ export const App = () => {
 		return () => { stdout?.off('resize', onResize); };
 	}, [stdout]);
 
-	const metadata = useMetadata();
+	const sysMetadata = useMetadata(config.player);
+	const { localState, playQueue, togglePause, changeVolume, seek, nextTrack, prevTrack, toggleShuffle, toggleLoop, stopLocal } = useLocalPlayer();
+
+	// Merge metadata
+	const metadata = localState.isActive ? localState : sysMetadata;
+
 	const { lyrics } = useLyrics(metadata.title, metadata.artist, metadata.duration);
 	
 	const { mode, maxHeight } = config.albumArt;
@@ -292,23 +443,43 @@ export const App = () => {
 	const artString = useAlbumArt(metadata.artUrl, artSize * 2, artSize, mode);
 
 	const padding = 6;
-	const artWidth = isArtVisible && !isLyricsMode && !isThemeMode ? artSize * 2 + 4 : 0; 
+	const artWidth = isArtVisible && !isLyricsMode && !isThemeMode && !isFileBrowserMode && !isPlayerSelectorMode ? artSize * 2 + 4 : 0; 
 	const availableWidth = Math.max(30, dimensions.columns - padding - artWidth);
 	
 	const bars = useCava(CONFIG_PATH, availableWidth);
 	const vizHeight = Math.max(2, Math.min(8, Math.floor(dimensions.rows / 4)));
 
 	useInput((input, key) => {
-		if (isThemeMode) return; // Let ThemeSelector handle inputs
+		if (isThemeMode || isFileBrowserMode || isPlayerSelectorMode) return; // Let sub-modes handle inputs
 		
 		if (input === 'q') exit();
 		if (input === 't') setIsThemeMode(true);
+		if (input === 'b') setIsFileBrowserMode(true);
+		if (input === 'm' || input === 'p') setIsPlayerSelectorMode(true);
 		if (input === 'a') setIsArtVisible(!isArtVisible);
-		if (input === ' ') execa('playerctl', ['play-pause']).catch(() => {});
-		if (key.rightArrow || input === 'l') execa('playerctl', ['next']).catch(() => {});
-		if (key.leftArrow || input === 'h') execa('playerctl', ['previous']).catch(() => {});
-		if (key.upArrow || input === 'k') execa('playerctl', ['volume', '0.05+']).catch(() => {});
-		if (key.downArrow || input === 'j') execa('playerctl', ['volume', '0.05-']).catch(() => {});
+
+		if (input === 's' && localState.isActive) toggleShuffle();
+		if (input === 'r' && localState.isActive) toggleLoop();
+		if (input === 'n' && localState.isActive) nextTrack();
+		if (input === 'p' && localState.isActive) prevTrack();
+
+		const playerArgs = config.player ? ['-p', config.player] : [];
+
+		if (input === ' ') {
+			localState.isActive ? togglePause() : execa('playerctl', [...playerArgs, 'play-pause']).catch(() => {});
+		}
+		if (key.rightArrow || input === 'l') {
+			localState.isActive ? seek(10) : execa('playerctl', [...playerArgs, 'next']).catch(() => {});
+		}
+		if (key.leftArrow || input === 'h') {
+			localState.isActive ? seek(-10) : execa('playerctl', [...playerArgs, 'previous']).catch(() => {});
+		}
+		if (key.upArrow || input === 'k') {
+			localState.isActive ? changeVolume('up') : execa('playerctl', [...playerArgs, 'volume', '0.05+']).catch(() => {});
+		}
+		if (key.downArrow || input === 'j') {
+			localState.isActive ? changeVolume('down') : execa('playerctl', [...playerArgs, 'volume', '0.05-']).catch(() => {});
+		}
 		if (input === 'v') setIsLyricsMode(!isLyricsMode);
 	});
 
@@ -321,10 +492,32 @@ export const App = () => {
 		setIsThemeMode(false);
 	};
 
+	const handlePlayerSelect = (playerName: string) => {
+		const newConfig = { ...config, player: playerName };
+		setConfig(newConfig);
+		try {
+			fs.writeFileSync(LYRE_CONFIG_PATH, JSON.stringify(newConfig, null, 2));
+		} catch (e) {}
+		setIsPlayerSelectorMode(false);
+	};
+
 	return (
 		<Box flexDirection="column" paddingX={1} paddingY={0} borderStyle="round" borderColor="magenta" width={dimensions.columns} height={dimensions.rows}>
 			<Box flexDirection="row" flexGrow={1} overflow="hidden">
-				{isThemeMode ? (
+				{isPlayerSelectorMode ? (
+					<PlayerSelectorMode 
+						activePlayer={config.player} 
+						onSelect={handlePlayerSelect} 
+						onCancel={() => setIsPlayerSelectorMode(false)} 
+						height={dimensions.rows - 6}
+					/>
+				) : isFileBrowserMode ? (
+					<FileBrowserMode 
+						height={dimensions.rows - 6} 
+						onSelect={(files, idx) => { playQueue(files, idx); setIsFileBrowserMode(false); }}
+						onCancel={() => setIsFileBrowserMode(false)}
+					/>
+				) : isThemeMode ? (
 					<ThemeSelectorMode 
 						activeTheme={config.visualizer.theme} 
 						onSelect={handleThemeSelect} 
@@ -378,7 +571,7 @@ export const App = () => {
 			</Box>
 
 			<Box flexDirection="column" width="100%">
-				{isLyricsMode && !isThemeMode && (
+				{isLyricsMode && !isThemeMode && !isFileBrowserMode && (
 					<Box marginBottom={0} justifyContent="center" width="100%">
 						<Visualizer bars={bars} type="minimal" activeTheme={config.visualizer.theme} />
 					</Box>
@@ -393,10 +586,14 @@ export const App = () => {
 						<Text color={metadata.status === 'Playing' ? 'green' : 'yellow'} wrap="truncate">
 							{metadata.status === 'Playing' ? '●' : '○'} {metadata.status}
 						</Text>
-						<Text color="gray" dimColor> (V: Lyrics | T: Themes | A: Art)</Text>
+						<Text color="gray" dimColor>
+							{localState.isActive 
+								? ` (V: Lyrics | T: Themes | B: Browser | P: Player | A: Art | S: Shuffle [${localState.isShuffle ? 'On' : 'Off'}] | R: Loop [${localState.isLoop ? 'On' : 'Off'}])`
+								: ` (V: Lyrics | T: Themes | B: Browser | P: Player | A: Art)`}
+						</Text>
 					</Box>
 					<Box flexShrink={0}>
-						<Text color="gray" dimColor> v1.2.0</Text>
+						<Text color="gray" dimColor> v1.3.0</Text>
 					</Box>
 				</Box>
 			</Box>

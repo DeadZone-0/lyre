@@ -11,7 +11,7 @@ export interface Metadata {
 	artUrl: string;
 }
 
-export const useMetadata = () => {
+export const useMetadata = (playerName?: string) => {
 	const [metadata, setMetadata] = useState<Metadata>({
 		title: 'Unknown Title',
 		artist: 'Unknown Artist',
@@ -25,13 +25,16 @@ export const useMetadata = () => {
 	useEffect(() => {
 		const updateMetadata = async () => {
 			try {
+				const argsMetadata = playerName ? ['-p', playerName, 'metadata'] : ['metadata'];
 				const { stdout } = await execa('playerctl', [
-					'metadata',
+					...argsMetadata,
 					'--format',
 					'{{title}}|||{{artist}}|||{{album}}|||{{position}}|||{{mpris:length}}|||{{mpris:artUrl}}',
 				]);
 				const [title, artist, album, positionStr, durationStr, artUrl] = stdout.split('|||');
-				const { stdout: status } = await execa('playerctl', ['status']).catch(() => ({ stdout: 'Stopped' }));
+				
+				const argsStatus = playerName ? ['-p', playerName, 'status'] : ['status'];
+				const { stdout: status } = await execa('playerctl', argsStatus).catch(() => ({ stdout: 'Stopped' }));
 
 				setMetadata({
 					title: title || 'Unknown Title',
@@ -51,7 +54,7 @@ export const useMetadata = () => {
 		updateMetadata();
 
 		return () => clearInterval(interval);
-	}, []);
+	}, [playerName]);
 
 	return metadata;
 };

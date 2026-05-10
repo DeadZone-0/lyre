@@ -3,6 +3,8 @@
 A beautiful music visualizer and metadata TUI built with Node.js and Ink.
 
 ## Features
+- **Built-in Local Player**: Browse and play your local audio files (MP3, FLAC, WAV) via a dedicated file browser with automatic queueing, shuffle, and loop.
+- **Media Player Selector**: Choose which active media player (e.g., Spotify, VLC, Firefox) Lyre should track.
 - **Real-time Visualization**: Audio visualizer using `cava` with customizable fluid or stacked bars.
 - **Synced Lyrics**: Fetches and displays time-synced lyrics that automatically scroll with the current track.
 - **Album Art**: High-resolution (half-block) or ASCII art modes.
@@ -136,12 +138,15 @@ Lyre provides a fully interactive terminal experience:
 
 | Key | Action |
 |-----|--------|
-| `v` | Toggle lyrics mode |
 | `Space` | Play / Pause |
 | `h` / `Left` | Previous track |
 | `l` / `Right` | Next track |
 | `k` / `Up` | Volume up (+5%) |
 | `j` / `Down` | Volume down (-5%) |
+| `b` | Toggle Local File Browser |
+| `p` or `m` | Select Media Player (e.g., lock onto Spotify) |
+| `s` | Toggle Shuffle (Local Player) |
+| `r` | Toggle Loop/Repeat (Local Player) |
 | `v` | Toggle Synced Lyrics Mode |
 | `t` | Open Theme Selector Menu |
 | `a` | Toggle Album Art Visibility |
