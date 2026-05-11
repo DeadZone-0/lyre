@@ -19,6 +19,8 @@ export interface LocalPlayerState {
 	currentIndex: number;
 	isShuffle: boolean;
 	isLoop: boolean;
+	shuffleOrder: number[];
+	shufflePosition: number;
 }
 
 const IPC_PATH = path.join(os.tmpdir(), 'lyre-mpv.sock');
@@ -34,10 +36,12 @@ export const useLocalPlayer = () => {
 		duration: 0,
 		position: 0,
 		status: 'Stopped',
-		queue: [],
+queue: [],
 		currentIndex: -1,
 		isShuffle: false,
-		isLoop: false
+		isLoop: false,
+		shuffleOrder: [],
+		shufflePosition: 0
 	});
 
 	const processRef = useRef<any>(null);
@@ -138,7 +142,9 @@ export const useLocalPlayer = () => {
 						if (json.event === 'property-change' && json.name === 'pause') {
 							setState(s => ({ ...s, status: json.data ? 'Paused' : 'Playing' }));
 						}
-					} catch (e) {}
+} catch (e) {
+			console.error('Failed to parse player metadata:', e);
+		}
 				}
 			});
 
@@ -149,6 +155,18 @@ export const useLocalPlayer = () => {
 		}, 500);
 	};
 
+	const generateShuffleOrder = (length: number, currentIdx: number): number[] => {
+		const order = [];
+		for (let i = 0; i < length; i++) {
+			if (i !== currentIdx) order.push(i);
+		}
+		for (let i = order.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[order[i], order[j]] = [order[j], order[i]];
+		}
+		return order;
+	};
+
 	const handleNextTrack = () => {
 		const s = stateRef.current;
 		if (s.queue.length === 0) {
@@ -157,8 +175,13 @@ export const useLocalPlayer = () => {
 		}
 
 		let nextIdx = s.currentIndex + 1;
-		if (s.isShuffle) {
-			nextIdx = Math.floor(Math.random() * s.queue.length);
+		if (s.isShuffle && s.shuffleOrder.length > 0) {
+			nextIdx = s.shuffleOrder[s.shufflePosition];
+			if (s.shufflePosition >= s.shuffleOrder.length - 1) {
+				setState(prev => ({ ...prev, shuffleOrder: generateShuffleOrder(prev.queue.length, prev.currentIndex), shufflePosition: 0 }));
+			} else {
+				setState(prev => ({ ...prev, shufflePosition: prev.shufflePosition + 1 }));
+			}
 		}
 
 		if (nextIdx >= s.queue.length) {
@@ -192,10 +215,17 @@ export const useLocalPlayer = () => {
 	};
 
 	const playQueue = (queue: string[], startIndex: number) => {
-		setState(s => ({ ...s, queue, currentIndex: startIndex }));
-		const file = queue[startIndex];
-		if (file) {
-			playTrack(file);
+		const safeIndex = queue.length === 0 ? -1 : Math.max(0, Math.min(startIndex, queue.length - 1));
+		setState(s => ({
+			...s,
+			queue,
+			currentIndex: safeIndex,
+			shuffleOrder: s.isShuffle ? generateShuffleOrder(queue.length, safeIndex) : [],
+			shufflePosition: 0
+		}));
+		if (safeIndex >= 0) {
+			const file = queue[safeIndex];
+			if (file) playTrack(file);
 		}
 	};
 
@@ -212,7 +242,12 @@ export const useLocalPlayer = () => {
 	};
 
 	const toggleShuffle = () => {
-		setState(s => ({ ...s, isShuffle: !s.isShuffle }));
+		setState(s => ({
+			...s,
+			isShuffle: !s.isShuffle,
+			shuffleOrder: !s.isShuffle ? generateShuffleOrder(s.queue.length, s.currentIndex) : [],
+			shufflePosition: 0
+		}));
 	};
 
 	const toggleLoop = () => {

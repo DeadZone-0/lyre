@@ -226,7 +226,12 @@ const AlbumArt = ({ pixels }: { pixels: string }) => {
 	return <Text wrap="truncate">{pixels}</Text>;
 };
 
-const ThemeSelectorMode = ({ activeTheme, onSelect, onCancel, height }: { activeTheme: string; onSelect: (t: string) => void; onCancel: () => void; height: number }) => {
+const truncate = (str: string, maxLen: number) => {
+	if (str.length <= maxLen) return str;
+	return str.slice(0, maxLen - 3) + '...';
+};
+
+const ThemeSelectorMode = ({ activeTheme, onSelect, onCancel, height, width }: { activeTheme: string; onSelect: (t: string) => void; onCancel: () => void; height: number; width: number }) => {
 	const themes = Object.keys(loadedThemes);
 	const [selectedIndex, setSelectedIndex] = useState(Math.max(0, themes.indexOf(activeTheme)));
 
@@ -237,8 +242,7 @@ const ThemeSelectorMode = ({ activeTheme, onSelect, onCancel, height }: { active
 		if (key.return || input === ' ') onSelect(themes[selectedIndex]!);
 	});
 
-	// Calculate visible items to avoid clipping
-	const maxVisible = Math.max(3, height - 4); // leaving space for headers/footers
+	const maxVisible = Math.max(1, height - 5);
 	let startIndex = Math.max(0, selectedIndex - Math.floor(maxVisible / 2));
 	let endIndex = startIndex + maxVisible;
 	if (endIndex > themes.length) {
@@ -248,31 +252,34 @@ const ThemeSelectorMode = ({ activeTheme, onSelect, onCancel, height }: { active
 	const visibleThemes = themes.slice(startIndex, endIndex);
 
 	return (
-		<Box flexDirection="column" alignItems="center" justifyContent="center" height="100%" width="100%">
-			<Box marginBottom={1} paddingX={2} borderStyle="single" borderColor="magenta">
-				<Text bold color="yellow">Theme Selector</Text>
+		<Box flexDirection="column" alignItems="flex-start" justifyContent="flex-start" height="100%" width="100%" paddingX={2} overflow="hidden">
+			<Box marginBottom={1} width="100%" height={1} overflow="hidden">
+				<Text bold color="yellow">{truncate("Theme Selector", width - 4)}</Text>
 			</Box>
-			<Box flexDirection="column" alignItems="flex-start" paddingX={2} paddingY={1}>
-				{startIndex > 0 && <Text color="gray">  ▲</Text>}
-				{visibleThemes.map((theme) => {
-					const index = themes.indexOf(theme);
+			<Box flexDirection="column" alignItems="flex-start" height={maxVisible + 2} width="100%" overflow="hidden">
+				<Box width="100%" height={1} overflow="hidden"><Text color="gray">{startIndex > 0 ? '  ▲' : ' '}</Text></Box>
+				{visibleThemes.map((theme, i) => {
+					const index = startIndex + i;
 					const isSelected = index === selectedIndex;
+					const str = `${isSelected ? '▶ ' : '  '}${theme.charAt(0).toUpperCase() + theme.slice(1)}`;
 					return (
-						<Text key={theme} color={isSelected ? 'cyan' : 'white'} bold={isSelected}>
-							{isSelected ? '▶ ' : '  '}{theme.charAt(0).toUpperCase() + theme.slice(1)}
-						</Text>
+						<Box key={theme} width="100%" height={1} overflow="hidden">
+							<Text color={isSelected ? 'cyan' : 'white'} bold={isSelected} wrap="truncate-end">
+								{truncate(str, width - 4)}
+							</Text>
+						</Box>
 					);
 				})}
-				{endIndex < themes.length && <Text color="gray">  ▼</Text>}
+				<Box width="100%" height={1} overflow="hidden"><Text color="gray">{endIndex < themes.length ? '  ▼' : ' '}</Text></Box>
 			</Box>
-			<Box marginTop={1}>
-				<Text color="gray" dimColor>(Enter: Select | T/Q: Cancel | Up/Down: Navigate)</Text>
+			<Box marginTop={1} width="100%" height={1} overflow="hidden">
+				<Text color="gray" dimColor>{truncate("(Enter: Select | T/Q: Cancel | Up/Down: Navigate)", width - 4)}</Text>
 			</Box>
 		</Box>
 	);
 };
 
-const FileBrowserMode = ({ onSelect, onCancel, height }: { onSelect: (files: string[], index: number) => void; onCancel: () => void; height: number }) => {
+const FileBrowserMode = ({ onSelect, onCancel, height, width }: { onSelect: (files: string[], index: number) => void; onCancel: () => void; height: number; width: number }) => {
 	const [currentDir, setCurrentDir] = useState(os.homedir());
 	const [files, setFiles] = useState<{ name: string; isDir: boolean }[]>([]);
 	const [selectedIndex, setSelectedIndex] = useState(0);
@@ -281,7 +288,7 @@ const FileBrowserMode = ({ onSelect, onCancel, height }: { onSelect: (files: str
 		try {
 			const items = fs.readdirSync(currentDir, { withFileTypes: true });
 			const sorted = items
-				.filter(item => !item.name.startsWith('.')) // hide hidden
+				.filter(item => !item.name.startsWith('.'))
 				.filter(item => item.isDirectory() || item.name.match(/\.(mp3|flac|wav|m4a|ogg)$/i))
 				.map(item => ({ name: item.name, isDir: item.isDirectory() }))
 				.sort((a, b) => {
@@ -315,7 +322,7 @@ const FileBrowserMode = ({ onSelect, onCancel, height }: { onSelect: (files: str
 		}
 	});
 
-	const maxVisible = Math.max(3, height - 4);
+	const maxVisible = Math.max(1, height - 5);
 	let startIndex = Math.max(0, selectedIndex - Math.floor(maxVisible / 2));
 	let endIndex = startIndex + maxVisible;
 	if (endIndex > files.length) {
@@ -325,46 +332,51 @@ const FileBrowserMode = ({ onSelect, onCancel, height }: { onSelect: (files: str
 	const visibleFiles = files.slice(startIndex, endIndex);
 
 	return (
-		<Box flexDirection="column" alignItems="flex-start" justifyContent="center" height="100%" width="100%" paddingX={2}>
-			<Box marginBottom={1} borderStyle="single" borderColor="cyan" width="100%">
-				<Text bold color="yellow">   {currentDir}</Text>
+		<Box flexDirection="column" alignItems="flex-start" justifyContent="flex-start" height="100%" width="100%" paddingX={2} overflow="hidden">
+			<Box marginBottom={1} width="100%" height={1} overflow="hidden">
+				<Text bold color="yellow">{truncate(`   ${currentDir}`, width - 4)}</Text>
 			</Box>
-			<Box flexDirection="column" alignItems="flex-start" paddingX={1} width="100%">
-				{startIndex > 0 && <Text color="gray">  ▲</Text>}
-				{visibleFiles.map((file) => {
-					const index = files.indexOf(file);
+			<Box flexDirection="column" alignItems="flex-start" height={maxVisible + 2} width="100%" overflow="hidden">
+				<Box width="100%" height={1} overflow="hidden"><Text color="gray">{startIndex > 0 ? '  ▲' : ' '}</Text></Box>
+				{visibleFiles.map((file, i) => {
+					const index = startIndex + i;
 					const isSelected = index === selectedIndex;
 					const icon = file.isDir ? ' ' : '󰝚 ';
+					const str = `${isSelected ? '▶ ' : '  '}${icon} ${file.name}`;
 					return (
-						<Text key={index} color={isSelected ? 'cyan' : (file.isDir ? 'blue' : 'white')} bold={isSelected} wrap="truncate-end">
-							{isSelected ? '▶ ' : '  '}{icon} {file.name}
-						</Text>
+						<Box key={index} width="100%" height={1} overflow="hidden">
+							<Text color={isSelected ? 'cyan' : (file.isDir ? 'blue' : 'white')} bold={isSelected}>
+								{truncate(str, width - 4)}
+							</Text>
+						</Box>
 					);
 				})}
-				{endIndex < files.length && <Text color="gray">  ▼</Text>}
+				<Box width="100%" height={1} overflow="hidden"><Text color="gray">{endIndex < files.length ? '  ▼' : ' '}</Text></Box>
 			</Box>
-			<Box marginTop={1}>
-				<Text color="gray" dimColor>(Enter: Select | B/Q: Cancel | Up/Down: Navigate)</Text>
+			<Box marginTop={1} width="100%" height={1} overflow="hidden">
+				<Text color="gray" dimColor>{truncate("(Enter: Select | B/Q: Cancel | Up/Down: Navigate)", width - 4)}</Text>
 			</Box>
 		</Box>
 	);
 };
 
-const PlayerSelectorMode = ({ activePlayer, onSelect, onCancel, height }: { activePlayer: string; onSelect: (p: string) => void; onCancel: () => void; height: number }) => {
+const PlayerSelectorMode = ({ activePlayer, onSelect, onCancel, height, width }: { activePlayer: string; onSelect: (p: string) => void; onCancel: () => void; height: number; width: number }) => {
 	const [players, setPlayers] = useState<string[]>(['Auto']);
 	const [selectedIndex, setSelectedIndex] = useState(0);
 
 	useEffect(() => {
+		let cancelled = false;
 		const fetchPlayers = async () => {
 			try {
 				const { stdout } = await execa('playerctl', ['-l']);
 				const list = stdout.split('\n').filter(Boolean);
-				setPlayers(['Auto', ...list]);
+				if (!cancelled) setPlayers(['Auto', ...list]);
 			} catch (e) {
-				setPlayers(['Auto']);
+				if (!cancelled) setPlayers(['Auto']);
 			}
 		};
 		fetchPlayers();
+		return () => { cancelled = true; };
 	}, []);
 
 	useEffect(() => {
@@ -379,7 +391,7 @@ const PlayerSelectorMode = ({ activePlayer, onSelect, onCancel, height }: { acti
 		if (key.return || input === ' ') onSelect(players[selectedIndex] === 'Auto' ? '' : players[selectedIndex]!);
 	});
 
-	const maxVisible = Math.max(3, height - 4);
+	const maxVisible = Math.max(1, height - 5);
 	let startIndex = Math.max(0, selectedIndex - Math.floor(maxVisible / 2));
 	let endIndex = startIndex + maxVisible;
 	if (endIndex > players.length) {
@@ -389,25 +401,28 @@ const PlayerSelectorMode = ({ activePlayer, onSelect, onCancel, height }: { acti
 	const visiblePlayers = players.slice(startIndex, endIndex);
 
 	return (
-		<Box flexDirection="column" alignItems="center" justifyContent="center" height="100%" width="100%">
-			<Box marginBottom={1} paddingX={2} borderStyle="single" borderColor="magenta">
-				<Text bold color="yellow">Media Player Selector</Text>
+		<Box flexDirection="column" alignItems="flex-start" justifyContent="flex-start" height="100%" width="100%" paddingX={2} overflow="hidden">
+			<Box marginBottom={1} width="100%" height={1} overflow="hidden">
+				<Text bold color="yellow">{truncate("Media Player Selector", width - 4)}</Text>
 			</Box>
-			<Box flexDirection="column" alignItems="flex-start" paddingX={2} paddingY={1}>
-				{startIndex > 0 && <Text color="gray">  ▲</Text>}
-				{visiblePlayers.map((player) => {
-					const index = players.indexOf(player);
+			<Box flexDirection="column" alignItems="flex-start" height={maxVisible + 2} width="100%" overflow="hidden">
+				<Box width="100%" height={1} overflow="hidden"><Text color="gray">{startIndex > 0 ? '  ▲' : ' '}</Text></Box>
+				{visiblePlayers.map((player, i) => {
+					const index = startIndex + i;
 					const isSelected = index === selectedIndex;
+					const str = `${isSelected ? '▶ ' : '  '}${player}`;
 					return (
-						<Text key={player} color={isSelected ? 'cyan' : 'white'} bold={isSelected}>
-							{isSelected ? '▶ ' : '  '}{player}
-						</Text>
+						<Box key={player} width="100%" height={1} overflow="hidden">
+							<Text color={isSelected ? 'cyan' : 'white'} bold={isSelected}>
+								{truncate(str, width - 4)}
+							</Text>
+						</Box>
 					);
 				})}
-				{endIndex < players.length && <Text color="gray">  ▼</Text>}
+				<Box width="100%" height={1} overflow="hidden"><Text color="gray">{endIndex < players.length ? '  ▼' : ' '}</Text></Box>
 			</Box>
-			<Box marginTop={1}>
-				<Text color="gray" dimColor>(Enter: Select | M/Q: Cancel | Up/Down: Navigate)</Text>
+			<Box marginTop={1} width="100%" height={1} overflow="hidden">
+				<Text color="gray" dimColor>{truncate("(Enter: Select | M/Q: Cancel | Up/Down: Navigate)", width - 4)}</Text>
 			</Box>
 		</Box>
 	);
@@ -456,12 +471,12 @@ export const App = () => {
 		if (input === 't') setIsThemeMode(true);
 		if (input === 'b') setIsFileBrowserMode(true);
 		if (input === 'm' || input === 'p') setIsPlayerSelectorMode(true);
-		if (input === 'a') setIsArtVisible(!isArtVisible);
+		else if (input === 'p' && localState.isActive) prevTrack();
 
+		if (input === 'a') setIsArtVisible(!isArtVisible);
 		if (input === 's' && localState.isActive) toggleShuffle();
 		if (input === 'r' && localState.isActive) toggleLoop();
 		if (input === 'n' && localState.isActive) nextTrack();
-		if (input === 'p' && localState.isActive) prevTrack();
 
 		const playerArgs = config.player ? ['-p', config.player] : [];
 
@@ -501,6 +516,10 @@ export const App = () => {
 		setIsPlayerSelectorMode(false);
 	};
 
+	const hotkeyStr = localState.isActive 
+		? ` (V: Lyrics | T: Themes | B: Browser | P: Player | A: Art | S: Shuffle [${localState.isShuffle ? 'On' : 'Off'}] | R: Loop [${localState.isLoop ? 'On' : 'Off'}])`
+		: ` (V: Lyrics | T: Themes | B: Browser | P: Player | A: Art)`;
+
 	return (
 		<Box flexDirection="column" paddingX={1} paddingY={0} borderStyle="round" borderColor="magenta" width={dimensions.columns} height={dimensions.rows}>
 			<Box flexDirection="row" flexGrow={1} overflow="hidden">
@@ -510,10 +529,12 @@ export const App = () => {
 						onSelect={handlePlayerSelect} 
 						onCancel={() => setIsPlayerSelectorMode(false)} 
 						height={dimensions.rows - 6}
+						width={dimensions.columns - 4}
 					/>
 				) : isFileBrowserMode ? (
 					<FileBrowserMode 
 						height={dimensions.rows - 6} 
+						width={dimensions.columns - 4}
 						onSelect={(files, idx) => { playQueue(files, idx); setIsFileBrowserMode(false); }}
 						onCancel={() => setIsFileBrowserMode(false)}
 					/>
@@ -523,6 +544,7 @@ export const App = () => {
 						onSelect={handleThemeSelect} 
 						onCancel={() => setIsThemeMode(false)} 
 						height={dimensions.rows - 6}
+						width={dimensions.columns - 4}
 					/>
 				) : isLyricsMode ? (
 					<LyricsMode 
@@ -582,14 +604,12 @@ export const App = () => {
 				</Box>
 
 				<Box flexDirection="row" justifyContent="space-between" width="100%">
-					<Box flexShrink={1}>
-						<Text color={metadata.status === 'Playing' ? 'green' : 'yellow'} wrap="truncate">
+					<Box flexShrink={1} width="100%" height={1} overflow="hidden">
+						<Text color={metadata.status === 'Playing' ? 'green' : 'yellow'} wrap="truncate-end">
 							{metadata.status === 'Playing' ? '●' : '○'} {metadata.status}
 						</Text>
 						<Text color="gray" dimColor>
-							{localState.isActive 
-								? ` (V: Lyrics | T: Themes | B: Browser | P: Player | A: Art | S: Shuffle [${localState.isShuffle ? 'On' : 'Off'}] | R: Loop [${localState.isLoop ? 'On' : 'Off'}])`
-								: ` (V: Lyrics | T: Themes | B: Browser | P: Player | A: Art)`}
+							{truncate(hotkeyStr, dimensions.columns - 25)}
 						</Text>
 					</Box>
 					<Box flexShrink={0}>
