@@ -5,6 +5,7 @@ import net from 'net';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
+import { log } from '../utils/logger.js';
 
 export interface LocalPlayerState {
 	isActive: boolean;
@@ -109,6 +110,7 @@ queue: [],
 			status: 'Playing'
 		}));
 
+		log(`Spawning MPV for: ${filePath}`);
 		const mpv = execa('mpv', [
 			'--no-terminal',
 			'--no-video',

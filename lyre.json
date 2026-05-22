@@ -7,7 +7,10 @@
   "visualizer": {
     "bars": 80,
     "fps": 30,
-    "theme": "ocean"
+    "theme": "ocean",
+    "sensitivity": 45,
+    "integral": 80,
+    "gravity": 170
   },
   "lyrics": {
     "enabled": true,

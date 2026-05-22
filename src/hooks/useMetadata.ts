@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { execa } from 'execa';
+import { log } from '../utils/logger.js';
 
 export interface Metadata {
 	title: string;
@@ -45,8 +46,10 @@ export const useMetadata = (playerName?: string) => {
 					duration: Number(durationStr) || 0,
 					artUrl: artUrl || '',
 				});
-			} catch (error) {
-				// Player not running or other error
+			} catch (error: any) {
+				if (!error.message.includes('No players found')) {
+					log(`Metadata Error: ${error.message}`);
+				}
 			}
 		};
 
