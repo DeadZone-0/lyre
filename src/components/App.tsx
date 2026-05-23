@@ -40,7 +40,7 @@ const getPaths = () => {
 
 	if (fs.existsSync(localConfig) && fs.existsSync(localCava)) {
 		if (!fs.existsSync(localThemes)) {
-			fs.writeFileSync(localThemes, JSON.stringify(DEFAULT_THEMES, null, 2));
+			try { fs.writeFileSync(localThemes, JSON.stringify(DEFAULT_THEMES, null, 2)); } catch (e) {}
 		}
 		return { config: localConfig, themes: localThemes, cava: localCava };
 	}
@@ -50,7 +50,7 @@ const getPaths = () => {
 	}
 	
 	if (!fs.existsSync(globalCava)) {
-		fs.writeFileSync(globalCava, `[general]\nframerate = 30\nbars = 100\nautosens = 1\n\n[output]\nmethod = raw\nraw_target = /dev/stdout\ndata_format = ascii\nascii_max_range = 1000\n\n[smoothing]\nmonstercat = 1\nintegral = 85\ngravity = 100\n`);
+		fs.writeFileSync(globalCava, `[general]\nframerate = 30\nbars = 100\nautosens = 1\n\n[output]\nmethod = raw\ndata_format = ascii\nascii_max_range = 1000\n\n[smoothing]\nmonstercat = 1\nintegral = 85\ngravity = 100\n`);
 	}
 
 	if (!fs.existsSync(globalThemes)) {
@@ -129,7 +129,7 @@ const VisualizerTweakerMode = ({ config, onUpdate, onCancel, width }: { config: 
 	];
 
 	useInput((input, key) => {
-		if (input === 'q' || key.escape || input === 'k') onCancel();
+		if (input === 'q' || key.escape) onCancel();
 		if (key.upArrow || input === 'k') setSelectedIndex(Math.max(0, selectedIndex - 1));
 		if (key.downArrow || input === 'j') setSelectedIndex(Math.min(options.length - 1, selectedIndex + 1));
 		
@@ -173,7 +173,7 @@ const VisualizerTweakerMode = ({ config, onUpdate, onCancel, width }: { config: 
 			})}
 			</Box>
 			<Box marginTop={1}>
-				<Text color="gray" dimColor>(H/L: Adjust | J/K: Navigate | K/Q: Close)</Text>
+				<Text color="gray" dimColor>(H/L: Adjust | J/K: Navigate | Q/Esc: Close)</Text>
 			</Box>
 		</Box>
 	);
@@ -666,7 +666,6 @@ sensitivity = ${newConfig.visualizer.sensitivity}
 
 [output]
 method = raw
-raw_target = /dev/stdout
 data_format = ascii
 ascii_max_range = 1000
 
