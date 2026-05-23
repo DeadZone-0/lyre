@@ -1,6 +1,6 @@
 {
   "name": "lyre-tui",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "description": "A beautiful music visualizer and metadata TUI",
   "type": "module",
   "bin": {
