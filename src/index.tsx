@@ -18,9 +18,9 @@ const instance = render(
 	</ErrorBoundary>
 );
 
-const cleanup = () => {
+const cleanup = (exitCode = 0) => {
 	instance.unmount();
-	process.exit(0);
+	process.exit(exitCode);
 };
 
 process.on('SIGINT', cleanup);
@@ -29,5 +29,5 @@ process.on('SIGTERM', cleanup);
 process.on('uncaughtException', (error) => {
 	log(`CRITICAL: Uncaught Exception: ${error.message}\n${error.stack}`);
 	console.error('\nUnexpected error:', error.message);
-	cleanup();
+	cleanup(1);
 });

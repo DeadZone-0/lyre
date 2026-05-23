@@ -120,7 +120,7 @@ queue: [],
 		processRef.current = mpv;
 
 		mpv.catch(() => {
-			// Ignore SIGTERM
+			setState(s => ({ ...s, isActive: false, status: 'Stopped', position: 0 }));
 		}).finally(() => {
 			// When MPV exits naturally (track ends), try to play next track
 			if (processRef.current === mpv) {
@@ -179,6 +179,10 @@ queue: [],
 		let nextIdx = s.currentIndex + 1;
 		if (s.isShuffle && s.shuffleOrder.length > 0) {
 			nextIdx = s.shuffleOrder[s.shufflePosition];
+			if (nextIdx === undefined) {
+				stop();
+				return;
+			}
 			if (s.shufflePosition >= s.shuffleOrder.length - 1) {
 				setState(prev => ({ ...prev, shuffleOrder: generateShuffleOrder(prev.queue.length, prev.currentIndex), shufflePosition: 0 }));
 			} else {
@@ -206,8 +210,20 @@ queue: [],
 		const s = stateRef.current;
 		if (s.queue.length === 0) return;
 
-		let prevIdx = s.currentIndex - 1;
-		if (prevIdx < 0) prevIdx = s.isLoop ? s.queue.length - 1 : 0;
+		let prevIdx: number;
+		if (s.isShuffle && s.shuffleOrder.length > 0) {
+			const prevShufflePos = s.shufflePosition - 1;
+			if (prevShufflePos < 0) {
+				prevIdx = s.currentIndex;
+			} else {
+				prevIdx = s.shuffleOrder[prevShufflePos];
+				if (prevIdx === undefined) prevIdx = s.currentIndex;
+				setState(prev => ({ ...prev, shufflePosition: prevShufflePos }));
+			}
+		} else {
+			prevIdx = s.currentIndex - 1;
+			if (prevIdx < 0) prevIdx = s.isLoop ? s.queue.length - 1 : 0;
+		}
 
 		setState(s => ({ ...s, currentIndex: prevIdx }));
 		const prevFile = s.queue[prevIdx];
