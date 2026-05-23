@@ -92,9 +92,12 @@ queue: [],
 			if (metadata.common.picture && metadata.common.picture.length > 0) {
 				const pic = metadata.common.picture[0];
 				if (pic) {
+					log(`Extracted album art from file, size: ${pic.data.length} bytes`);
 					fs.writeFileSync(ART_PATH, pic.data);
 					newArtUrl = `file://${ART_PATH}`;
 				}
+			} else {
+				log('No album art found in metadata');
 			}
 		} catch (e) {}
 

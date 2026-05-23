@@ -816,7 +816,7 @@ gravity = ${newConfig.visualizer.gravity}
 						</Text>
 					</Box>
 					<Box flexShrink={0}>
-						<Text color="gray" dimColor> v1.3.3</Text>
+						<Text color="gray" dimColor> v1.3.4</Text>
 					</Box>
 				</Box>
 			</Box>

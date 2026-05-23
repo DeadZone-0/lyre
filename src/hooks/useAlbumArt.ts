@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import got from 'got';
 import { Jimp } from 'jimp';
 import chalk from 'chalk';
+import { fileURLToPath } from 'url';
+import fs from 'fs/promises';
 
 export const useAlbumArt = (url: string, width: number, height: number, mode: 'high-res' | 'ascii') => {
 	const [artString, setArtString] = useState<string>('');
@@ -16,11 +18,26 @@ export const useAlbumArt = (url: string, width: number, height: number, mode: 'h
 
 		const fetchArt = async () => {
 			try {
-				const response = await got(url, { responseType: 'buffer' });
+				let buffer: Buffer;
+
+				if (url.startsWith('file://')) {
+					const filePath = fileURLToPath(url);
+					try {
+						await fs.access(filePath);
+					} catch {
+						if (!cancelled) setArtString('');
+						return;
+					}
+					buffer = await fs.readFile(filePath);
+				} else {
+					const response = await got(url, { responseType: 'buffer' });
+					buffer = response.body;
+				}
+
 				if (cancelled) return;
 
 				// @ts-ignore
-				const image = await Jimp.read(Buffer.from(response.body));
+				const image = await Jimp.read(buffer);
 				if (cancelled) return;
 
 				// Sharpen
