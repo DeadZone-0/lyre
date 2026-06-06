@@ -25,10 +25,7 @@ export const useCava = (configPath: string, barsCount: number, deps: any[] = [])
 			log(`CAVA stderr: ${data.toString()}`);
 		});
 
-		cava.stdout?.on('data', (data: Buffer) => {
-			if (lastUpdateRef.current === 0) {
-				log('CAVA stdout received first frame');
-			}
+		const onData = (data: Buffer) => {
 			bufferRef.current += data.toString();
 			const lines = bufferRef.current.split('\n');
 			bufferRef.current = lines.pop() || '';
@@ -48,13 +45,22 @@ export const useCava = (configPath: string, barsCount: number, deps: any[] = [])
 						const idx = Math.floor((i / barsCount) * values.length);
 						return values[idx] || 0;
 					});
-					setBars(sampled);
+
+					setBars(prevBars => {
+						// Simple check to avoid re-renders if nothing changed (e.g. silence)
+						const hasChanged = sampled.some((v, i) => v !== prevBars[i]);
+						if (!hasChanged) return prevBars;
+						return sampled;
+					});
 					lastUpdateRef.current = now;
 				}
 			}
-		});
+		};
+
+		cava.stdout?.on('data', onData);
 
 		return () => {
+			cava.stdout?.off('data', onData);
 			if (!cava.killed) {
 				cava.kill('SIGTERM');
 			}

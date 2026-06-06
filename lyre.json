@@ -17,5 +17,24 @@
     "activeColor": "yellow",
     "inactiveColor": "gray"
   },
-  "player": "spotify"
+  "player": "firefox.instance_1_406",
+  "keybindings": {
+    "quit": "q",
+    "playPause": " ",
+    "next": "n",
+    "previous": "p",
+    "seekForward": "l",
+    "seekBackward": "h",
+    "volumeUp": "k",
+    "volumeDown": "j",
+    "browser": "b",
+    "themes": "t",
+    "player": "m",
+    "lyrics": "v",
+    "art": "a",
+    "focus": "z",
+    "tweaker": "f",
+    "shuffle": "s",
+    "loop": "r"
+  }
 }

@@ -181,12 +181,12 @@ const VisualizerTweakerMode = ({ config, onUpdate, onCancel, width }: { config: 
 
 const BLOCKS = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
 
-const Visualizer = ({ bars, height = 4, type = 'horizontal', activeTheme = 'default' }: { bars: number[]; height?: number; type?: 'horizontal' | 'minimal'; activeTheme?: string }) => {
+const Visualizer = React.memo(({ bars, height = 4, type = 'horizontal', activeTheme = 'default' }: { bars: number[]; height?: number; type?: 'horizontal' | 'minimal'; activeTheme?: string }) => {
 	const theme = (loadedThemes as any)[activeTheme] || loadedThemes.default;
 	const maxLevel = theme.style === 'stacked' ? height : height * 8;
 	
 	const vizString = useMemo(() => {
-		let result = '';
+		const result: string[] = [];
 		if (type === 'minimal') {
 			for (let i = 0; i < bars.length; i++) {
 				const v = bars[i] || 0;
@@ -198,7 +198,7 @@ const Visualizer = ({ bars, height = 4, type = 'horizontal', activeTheme = 'defa
 				if (colorStr.startsWith('#')) colorFunc = chalk.hex(colorStr);
 				else if ((chalk as any)[colorStr]) colorFunc = (chalk as any)[colorStr];
 				
-				result += colorFunc(BLOCKS[Math.min(level, 8)] || ' ');
+				result.push(colorFunc(BLOCKS[Math.min(level, 8)] || ' '));
 			}
 		} else {
 			for (let r = height - 1; r >= 0; r--) {
@@ -235,16 +235,16 @@ const Visualizer = ({ bars, height = 4, type = 'horizontal', activeTheme = 'defa
 					if (colorStr && colorStr.startsWith('#')) colorFunc = chalk.hex(colorStr);
 					else if (colorStr && (chalk as any)[colorStr]) colorFunc = (chalk as any)[colorStr];
 
-					result += colorFunc(char);
+					result.push(colorFunc(char));
 				}
-				if (r > 0) result += '\n';
+				if (r > 0) result.push('\n');
 			}
 		}
-		return result;
+		return result.join('');
 	}, [bars, height, maxLevel, type, theme]);
 
 	return <Text wrap="truncate">{vizString}</Text>;
-};
+});
 
 const LyricsMode = ({ lyrics, position, height, width, title, config }: { lyrics: any[], position: number, height: number, width: number, title: string, config: any }) => {
 	const currentMs = position / 1000;
@@ -283,7 +283,7 @@ const LyricsMode = ({ lyrics, position, height, width, title, config }: { lyrics
 	);
 };
 
-const ProgressBar = ({ current, total, width }: { current: number; total: number; width: number }) => {
+const ProgressBar = React.memo(({ current, total, width }: { current: number; total: number; width: number }) => {
 	if (total === 0) return null;
 	const percentage = Math.min(current / total, 1);
 	const barWidth = Math.max(10, width - 15);
@@ -305,12 +305,12 @@ const ProgressBar = ({ current, total, width }: { current: number; total: number
 			<Text color="gray" dimColor> {formatTime(total)}</Text>
 		</Box>
 	);
-};
+});
 
-const AlbumArt = ({ pixels }: { pixels: string }) => {
+const AlbumArt = React.memo(({ pixels }: { pixels: string }) => {
 	if (!pixels) return <Text color="gray" dimColor>♪</Text>;
 	return <Text wrap="truncate">{pixels}</Text>;
-};
+});
 
 const truncate = (str: string, maxLen: number) => {
 	if (str.length <= maxLen) return str;
@@ -816,7 +816,7 @@ gravity = ${newConfig.visualizer.gravity}
 						</Text>
 					</Box>
 					<Box flexShrink={0}>
-						<Text color="gray" dimColor> v1.3.4</Text>
+						<Text color="gray" dimColor> v1.3.5</Text>
 					</Box>
 				</Box>
 			</Box>
