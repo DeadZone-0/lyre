@@ -3,7 +3,7 @@
 A beautiful music visualizer and metadata TUI built with Node.js and Ink.
 
 ## Features
-- **Built-in Local Player**: Browse and play your local audio files (MP3, FLAC, WAV) via a dedicated file browser with automatic queueing, shuffle, and loop.
+- **Built-in Local Player**: Browse and play your local audio files (MP3, FLAC, WAV, M4A, OGG) via a dedicated file browser with automatic queueing, shuffle, and loop.
 - **Smart Search**: Instantly filter your local music library while browsing.
 - **Media Player Selector**: Choose which active media player (e.g., Spotify, VLC, Firefox) Lyre should track.
 - **Visualizer Tweaker**: Adjust CAVA sensitivity, smoothing, and gravity in real-time.
@@ -11,7 +11,7 @@ A beautiful music visualizer and metadata TUI built with Node.js and Ink.
 - **Real-time Visualization**: Audio visualizer using `cava` with customizable fluid or stacked bars.
 - **Synced Lyrics**: Fetches and displays time-synced lyrics that automatically scroll with the current track.
 - **Album Art**: High-resolution (half-block) or ASCII art modes.
-- **Modular Themes**: Switch between built-in visualizer themes or create your own custom gradients and styles.
+- **Modular Themes**: Switch between 8 built-in visualizer themes (default, cyberpunk, retro, ocean, matrix, fire, synthwave, glacier).
 - **Custom Keybindings**: Fully remappable keys for all actions.
 - **Responsive**: Adapts to any terminal size and window resizing with smart truncation.
 
@@ -20,7 +20,7 @@ A beautiful music visualizer and metadata TUI built with Node.js and Ink.
 - **cava**: Required for visualization.
 - **playerctl**: Required for metadata and controls.
 - **mpv**: Required for local file playback.
-- **Nerd Fonts**: Recommended for icons.
+- **Nerd Fonts**: Required for file icons.
 
 ## Installation
 
@@ -39,16 +39,7 @@ lyre
 
 ## Configuration
 
-Lyre stores all configuration files in `~/.config/lyre/`. On first run, default configuration files are automatically generated if they do not exist.
-
-### Directory Structure
-
-```
-~/.config/lyre/
-├── lyre.json      # UI settings (album art, visualizer, lyrics, keybindings)
-├── themes.json    # Custom visualizer themes
-└── cava.conf      # Audio visualizer parameters
-```
+Lyre stores all configuration files in `~/.config/lyre/`. On first run, `themes.json` and `cava.conf` are automatically generated if they do not exist. `lyre.json` is created automatically when you change settings via the UI, or you can create it manually.
 
 ### `lyre.json` — UI Configuration
 
@@ -62,18 +53,17 @@ Customize the appearance and behavior by editing `~/.config/lyre/lyre.json`:
     "maxHeight": 18
   },
   "visualizer": {
-    "bars": 80,
-    "fps": 30,
     "theme": "default",
+    "fps": 30,
     "sensitivity": 100,
     "integral": 85,
     "gravity": 100
   },
   "lyrics": {
-    "enabled": true,
     "activeColor": "yellow",
     "inactiveColor": "gray"
   },
+  "player": "",
   "keybindings": {
     "quit": "q",
     "playPause": " ",
@@ -122,13 +112,13 @@ Lyre provides a fully interactive terminal experience. Use the **Tweaker (`f`)**
 | `j` / `Down` | Volume down (-5%) |
 | `b` | Toggle Local File Browser |
 | `/` | Smart Search (while in Browser) |
-| `m` or `p` | Select Media Player (lock source) |
+| `m` | Select Media Player (lock source) |
 | `f` | Open Visualizer Tweaker |
 | `z` | Toggle Focus Mode (minimalist) |
 | `s` | Toggle Shuffle (Local Player) |
 | `r` | Toggle Loop/Repeat (Local Player) |
 | `v` | Toggle Synced Lyrics Mode |
-| `t` | Open Theme Selector Menu |
+| `t` | Toggle Theme Selector Menu |
 | `a` | Toggle Album Art Visibility |
 | `q` | Quit |
 | `Ctrl+C` | Force quit (with cleanup) |
